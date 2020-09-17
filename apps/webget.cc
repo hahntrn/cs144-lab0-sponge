@@ -18,14 +18,16 @@ void get_URL(const string &host, const string &path) {
     // the "eof" (end of file).
     TCPSocket sock;
     auto addr = Address(host, "http");
-    sock.bind(addr); // .bind: Cannot assign requested address
+    sock.connect(addr); // .bind: Cannot assign requested address
     sock.write("GET " + path + " HTTP/1.1\r\n");
     sock.write("Host: " + host + "\r\n");
-    while(sock.eof()) {
+    cout << "Here" << endl;
+    while(!sock.eof()) {
         cout << "Reading..." << endl;
         cout << sock.read() << endl;
     }
-    sock.close();    
+    cout << "Ending." << endl;
+    sock.close(); 
 }
 
 int main(int argc, char *argv[]) {
