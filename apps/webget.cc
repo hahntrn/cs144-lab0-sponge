@@ -16,36 +16,15 @@ void get_URL(const string &host, const string &path) {
     // (not just one call to read() -- everything) until you reach
     // the "eof" (end of file).
     
-    // Attempt 1
     TCPSocket sock;
-    sock.connect(Address("cs144.keithw.org", "http")); // .bind: Cannot assign requested address
-    sock.write("GET /hello HTTP/1.1\r\n");
-    sock.write("Host: cs144.keithw.org\r\n");
-    sock.write("Connection: close\r\n");
+    sock.connect(Address(host, "http"));
+    sock.write("GET " + path + " HTTP/1.1\r\n");
+    sock.write("Host: " + host + "\r\n");
+    sock.write("Connection: close\r\n\r\n");
     while(!sock.eof()) {
         cout << sock.read() << endl;
-        cout << host << path << endl;
     }
     sock.close(); 
-    
-    // Attempt 2, from TCPSocket documentation example
-    // TCPSocket sock1;
-    // sock1.bind(Address(host, "http"));
-    // sock1.listen();
-
-    // TCPSocket sock2;
-    // sock2.connect(Address(host, "http"));
-    // auto sock3 = sock1.accept();
-    // sock3.write("GET " + path + " HTTP/1.1\r\n");
-    // sock3.write("Host: " + host + "\r\n");
-    // while(!sock2.eof()) {
-    //     cout << "reading" << endl;
-    //     cout << sock2.read() << endl;
-    // }
-    // sock3.write("Connection: close");
-    // sock1.close();
-    // sock2.close();
-    // sock3.close();
 }
 
 int main(int argc, char *argv[]) {
