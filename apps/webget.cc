@@ -18,13 +18,13 @@ void get_URL(const string &host, const string &path) {
     
     // Attempt 1
     TCPSocket sock;
-    sock.connect(Address(host, "http")); // .bind: Cannot assign requested address
-    sock.write("GET cs144.keithw.org HTTP/1.1\r\n");
-    sock.write("Host: /hello\r\n");
+    sock.connect(Address("cs144.keithw.org", "http")); // .bind: Cannot assign requested address
+    sock.write("GET /hello HTTP/1.1\r\n");
+    sock.write("Host: cs144.keithw.org\r\n");
     sock.write("Connection: close\r\n");
     while(!sock.eof()) {
         cout << sock.read() << endl;
-        cout << path;
+        cout << host << path << endl;
     }
     sock.close(); 
     
