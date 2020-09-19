@@ -12,11 +12,13 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
-ByteStream::ByteStream(const size_t capacity) { DUMMY_CODE(capacity); }
-
+ByteStream::ByteStream(const size_t capacity) {
+    buffer = char[capacity];
+    bufferCapacity = capacity;
+}
 size_t ByteStream::write(const string &data) {
-    DUMMY_CODE(data);
-    return {};
+    buffer[0] = data[0];
+    return 1;
 }
 
 //! \param[in] len bytes will be copied from the output side of the buffer

@@ -16,7 +16,8 @@ class ByteStream {
     // all, but if any of your tests are taking longer than a second,
     // that's a sign that you probably want to keep exploring
     // different approaches.
-
+    char buffer[];
+    size_t bufferCapacity;
     bool _error{};  //!< Flag indicating that the stream suffered an error.
 
   public:
