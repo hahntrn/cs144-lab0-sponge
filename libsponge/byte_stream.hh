@@ -18,7 +18,9 @@ class ByteStream {
     // that's a sign that you probably want to keep exploring
     // different approaches.
     std::vector<char> buffer;
-    size_t bufferCapacity;
+    std::vector<char>::iterator begin;
+    size_t curSize;
+    size_t maxCapacity;
     bool _error{};  //!< Flag indicating that the stream suffered an error.
 
   public:
