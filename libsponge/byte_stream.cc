@@ -14,18 +14,43 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 ByteStream::ByteStream(const size_t capacity): 
-    buffer(capacity), dataBegin(0), 
-    curSize(0), maxCapacity(capacity) {}
+    buffer(capacity), data_begin(0), 
+    n_bytes_read(0), cur_size(0), max_capacity(capacity) {}
 
 size_t ByteStream::write(const string &data) {
-    buffer[0] = data[0];
+    size_t n_bytes_to_write = std::min(data.length(), max_capacity - cur_size);
+    if (n_bytes_to_write > max_capacity - cur_size) {
+        n_bytes_to_write = max_capacity - cur_size;
+        // std::cerr << "Not enough space left in buffer for data" << std::endl;
+    }
+
+    for (size_t i = 0; i < n_bytes_to_write; i++) {
+        buffer[(data_begin + i) % max_capacity] = data[i];
+    }
+    n_bytes_read += n_bytes_to_write;
+    cur_size += n_bytes_to_write;
+
     return 1;
 }
 
 //! \param[in] len bytes will be copied from the output side of the buffer
 string ByteStream::peek_output(const size_t len) const {
-    std::cout << len;
-    return "";
+    // if requesting more bytes than what's in the buffer,
+    // return as many as possible (i.e. all bytes written in buffer)
+    
+    // num bytes to return, max is num bytes in buffer
+    size_t len_ret = std::min(len, cur_size); 
+
+    if (data_begin + len_ret < cur_size) {
+        std::string s(buffer.begin() + data_begin, 
+                      buffer.begin() + data_begin + len_ret);
+        return s;
+    }
+    std::string s1(buffer.begin() + data_begin, buffer.end());
+    std::string s2(buffer.begin(), 
+                   buffer.begin() + (data_begin + len_ret) % cur_size);
+    s1.append(s2);
+    return s1;
 }
 
 //! \param[in] len bytes will be removed from the output side of the buffer
@@ -45,9 +70,9 @@ void ByteStream::end_input() {}
 
 bool ByteStream::input_ended() const { return {}; }
 
-size_t ByteStream::buffer_size() const { return {}; }
+size_t ByteStream::buffer_size() const { return cur_size; }
 
-bool ByteStream::buffer_empty() const { return {}; }
+bool ByteStream::buffer_empty() const { return cur_size == 0; }
 
 bool ByteStream::eof() const { return false; }
 
