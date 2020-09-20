@@ -20,6 +20,7 @@ class ByteStream {
     std::vector<char> buffer;
     size_t data_begin;
     size_t n_bytes_read;
+    size_t n_bytes_written;
     size_t cur_size;
     const size_t max_capacity;
     bool _error{};  //!< Flag indicating that the stream suffered an error.
