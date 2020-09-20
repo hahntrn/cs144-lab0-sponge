@@ -17,6 +17,7 @@ class ByteStream {
     // all, but if any of your tests are taking longer than a second,
     // that's a sign that you probably want to keep exploring
     // different approaches.
+    bool done_writing;
     std::vector<char> buffer;
     size_t data_begin;
     size_t n_bytes_read;
