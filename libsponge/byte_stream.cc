@@ -36,14 +36,17 @@ string ByteStream::peek_output(const size_t len) const {
     
     // num bytes to return, max is num bytes in buffer
     size_t len_ret = std::min(len, cur_size); 
-
+    std::cout << "len_ret: " << len_ret << std::endl;
     // data is in one contiguous block in buffer
-    if (data_begin + len_ret < cur_size) {
+    if (data_begin + len_ret <= max_capacity) {
+        std::cout << "reading contiguous data" << std::endl;
         std::string s(buffer.begin() + data_begin, 
                       buffer.begin() + data_begin + len_ret);
+        std::cout << s << std::endl;
         return s;
     }
-
+    
+    std::cout << "reading wrapped data" << std::endl;
     // data is wrapped around the buffer, broken up in the middle
     std::string s1(buffer.begin() + data_begin, buffer.end());
     std::string s2(buffer.begin(), 
@@ -55,6 +58,7 @@ string ByteStream::peek_output(const size_t len) const {
 //! \param[in] len bytes will be removed from the output side of the buffer
 void ByteStream::pop_output(const size_t len) { 
     data_begin = (data_begin + len) % max_capacity;
+    n_bytes_read += std::min(len, cur_size);
     cur_size = std::max(size_t(0), cur_size - len);
 }
 
@@ -62,9 +66,9 @@ void ByteStream::pop_output(const size_t len) {
 //! \param[in] len bytes will be popped and returned
 //! \returns a string
 std::string ByteStream::read(const size_t len) {
-    const std::string ret = peek_output(len); 
-    n_bytes_read += ret.length();
-    pop_output(len);
+    std::string ret = peek_output(len); 
+    // n_bytes_read += ret.length();
+    pop_output(ret.length());
     return ret;
 }
 
