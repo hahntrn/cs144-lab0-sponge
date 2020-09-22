@@ -15,7 +15,9 @@ int main(int argc, char *argv[]) {
     std::cout << bs.write("black cat") << std::endl;
     bs.end_input();
     std::cout << bs.read(3) << std::endl;
-    
+    std::cout << bs.write("asdf") << std::endl;
+    std::cout << bs.read(7) << std::endl;
+    std::cout << "err? " << bs.read(1) << std::endl;
     std::cout 
         << "Input ended:   " << bs.input_ended() << std::endl
         << "Buffer empty:  " << bs.buffer_empty() << std::endl
