@@ -5,16 +5,28 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
     // Your code here -- add private members as necessary.
-
+    struct Byte {
+        char data;
+        bool filled;
+    };
+      
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
+    std::vector<Byte> unasmb; // ring buffer of unassembled bytes
+    size_t first_unread; // index of first byte in _output ByteStream wrt whole stream
+    size_t unasmb_vbegin; // index of first unassembled byte wrt unasmb vector
 
+    //! \brief Returns the offset index in unassembled ring buffer
+    // TODO: make const
+    // const size_t rbi(const size_t i) { return (i + const_cast<const size_t>(unasmb_vbegin)) % _capacity; }
+    size_t rbi(size_t i) { return (i + unasmb_vbegin) % _capacity; }
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
     //! \note This capacity limits both the bytes that have been reassembled,
