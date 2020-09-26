@@ -27,7 +27,10 @@ class StreamReassembler {
     //bool cmp = [](struct Chunk &a, struct Chunk &b) { return a.index < b.index; };
     std::set<Chunk> unasmb; 
     size_t first_unread; // index of first byte in _output ByteStream wrt whole stream
+    size_t first_unasmb;
     size_t n_unasmb_bytes;
+    bool eof_set;
+    size_t last_byte;
 
     //! \brief Returns the offset index in unassembled ring buffer
     // todo: make const

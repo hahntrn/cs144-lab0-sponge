@@ -16,27 +16,40 @@ using namespace std;
 StreamReassembler::StreamReassembler(const size_t capacity) :
     _output(capacity), _capacity(capacity)
     , unasmb() //? why empty init???
-    , first_unread(0), n_unasmb_bytes(0) {}
+    , first_unread(0), first_unasmb(0), n_unasmb_bytes(0), eof_set(false), last_byte(0) {}
 
 //! \details This function accepts a substring (aka a segment) of bytes,
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
-    // add directly to ByteStream if data chunk starts at or before first_unassembled &
-    size_t first_unassembled = first_unread + _output.buffer_size();
-    if (index <= first_unassembled && index + data.size() > first_unassembled) {
-        // can be assembled, add directly to ByteStream
-        // substr to skip over any bytes already in the stream if not out of range
-        first_unread += _output.write(data.substr(first_unassembled - index));
-    } else if (index > first_unassembled && index + data.size() < first_unread + _capacity) {
-        // can't be assembled yet but
-        // new chunk of data is within the receiver advertised window
+    if (_output.input_ended()) {
+        return;
+    }
+
+    size_t first_unacceptable = first_unasmb + _capacity - _output.buffer_size();
+    if (eof) {
+        eof_set = true;
+        last_byte = index + data.size(); 
+    }
+    if (index + data.size() >= first_unasmb 
+            && index < first_unacceptable) {
+        // some part of new chunk of data is within the receiver advertised window
 
         Chunk new_chunk = { data, index }; // do all erasing first, then insert
+        // if data too long to fit in window, chop off back bits
+        if (new_chunk.index + new_chunk.data.size() > first_unacceptable) {
+            new_chunk.data = new_chunk.data.substr(0, first_unacceptable - new_chunk.index);
+        }
+        // if data overlaps ByteStream, chop off front bits
+        if (new_chunk.index < first_unasmb) {
+            new_chunk.data = new_chunk.data.substr(first_unasmb - new_chunk.index);
+            new_chunk.index = first_unasmb;
+        }
+
         // [new0, new1) new chunk's byte number range
         // [cur0, cur1) cur chunk's byte number ramge
-        size_t new0 = index;              
-        size_t new1 = index + data.size();
+        size_t new0 = new_chunk.index; 
+        size_t new1 = new_chunk.index + new_chunk.data.size();
 
         // if new chunk of data overlaps with any existing unassembled chunk, merge them
         auto it = unasmb.begin(); 
@@ -52,15 +65,15 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
                 // new chunk encapsulates an existing chunk, remove to replace w/ new
                 n_unasmb_bytes -= it->data.size();
                 it = unasmb.erase(it);
-            } else if (cur0 <= new0 && cur1 <= new1) {
+            } else if (cur0 <= new0 && new0 <= cur1) {
                 // new chunk overlaps end of current chunk, prepend cur chunk's data to new data
-                new_chunk.data = it->data.substr(0, new0 - cur0) + data;
-                new_chunk.data = cur0;
+                new_chunk.data = it->data.substr(0, new0 - cur0) + new_chunk.data;
+                new_chunk.index = cur0;
                 n_unasmb_bytes -= it->data.size();
                 it = unasmb.erase(it);
-            } else if (new0 <= cur0 && new1 <= cur1) {
+            } else if (new0 <= cur0 && cur0 <= new1) {
                 // new chunk overlaps beginning of cur chunk, append
-                new_chunk.data = data + it->data.substr(new1 - cur0);
+                new_chunk.data += it->data.substr(new1 - cur0);
                 n_unasmb_bytes -= it->data.size();
                 it = unasmb.erase(it);
             } else {
@@ -72,7 +85,19 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         n_unasmb_bytes += new_chunk.data.size();
         unasmb.insert(new_chunk);
     }
-    if (eof) {
+    // add directly to ByteStream if data chunk starts at or before first_unasmb &
+    auto next_chunk = unasmb.begin();
+    if (!unasmb.empty() && next_chunk->index <= first_unasmb) {
+        // can be assembled, add directly to ByteStream
+        // substr to skip over any bytes already in the stream if not out of range
+        _output.write(next_chunk->data.substr(first_unasmb - next_chunk->index));
+        first_unasmb += next_chunk->data.size();
+        n_unasmb_bytes -= next_chunk->data.size();
+        unasmb.erase(unasmb.begin());
+    }
+    
+    // after potentially pushing to ByteStream
+    if (eof_set && last_byte <= first_unasmb) {
         _output.end_input();
     }
 }
