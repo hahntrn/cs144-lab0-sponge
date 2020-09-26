@@ -22,14 +22,14 @@ class StreamReassembler {
         inline bool operator<(const Chunk &b) const { return index < b.index; };
         std::string data = "";
         size_t index = 0;
-    };
+    }; // why no alias here?
     //struct cmp { bool operator() (struct Chunk a, struct Chunk b) const { return a.index < b.index; } };
     //bool cmp = [](struct Chunk &a, struct Chunk &b) { return a.index < b.index; };
     std::set<Chunk> unasmb; 
     size_t first_unread; // index of first byte in _output ByteStream wrt whole stream
 
     //! \brief Returns the offset index in unassembled ring buffer
-    // TODO: make const
+    // todo: make const
     // const size_t rbi(const size_t i) { return (i + const_cast<const size_t>(unasmb_vbegin)) % _capacity; }
     // size_t rbi(size_t i) { return (i + unasmb_vbegin) % _capacity; }
   public:
