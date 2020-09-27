@@ -1,5 +1,6 @@
-#include "libsponge/byte_stream.hh"
 #include "libsponge/byte_stream.cc"
+#include "libsponge/byte_stream.hh"
+
 #include <iostream>
 
 int main(int argc, char *argv[]) {
@@ -18,13 +19,12 @@ int main(int argc, char *argv[]) {
     std::cout << bs.write("asdf") << std::endl;
     std::cout << bs.read(7) << std::endl;
     std::cout << "err? " << bs.read(1) << std::endl;
-    std::cout 
-        << "Input ended:   " << bs.input_ended() << std::endl
-        << "Buffer empty:  " << bs.buffer_empty() << std::endl
-        << "EOF:           " << bs.eof() << std::endl
-        << "Bytes read:    " << bs.bytes_read() << std::endl
-        << "Bytes written: " << bs.bytes_written() << std::endl
-        << "Remaining cap: " << bs.remaining_capacity() << std::endl
-        << "Buffer size:   " << bs.buffer_size() << std::endl;
+    std::cout << "Input ended:   " << bs.input_ended() << std::endl
+              << "Buffer empty:  " << bs.buffer_empty() << std::endl
+              << "EOF:           " << bs.eof() << std::endl
+              << "Bytes read:    " << bs.bytes_read() << std::endl
+              << "Bytes written: " << bs.bytes_written() << std::endl
+              << "Remaining cap: " << bs.remaining_capacity() << std::endl
+              << "Buffer size:   " << bs.buffer_size() << std::endl;
     return 0;
 }
