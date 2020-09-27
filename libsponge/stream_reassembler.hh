@@ -4,8 +4,8 @@
 #include "byte_stream.hh"
 
 #include <cstdint>
+#include <list>
 #include <string>
-#include <set>
 
 // References: Nick Hirning (nhirning) for idea of storing aggregated bytes as
 // one item in data structure and using a struct to store metadata
@@ -15,27 +15,22 @@
 class StreamReassembler {
   private:
     // Your code here -- add private members as necessary.
-      
+
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
     struct Chunk {
-        inline bool operator<(const Chunk &b) const { return index < b.index; };
-        std::string data = "";
-        size_t index = 0;
-    }; // why no alias here?
-    //struct cmp { bool operator() (struct Chunk a, struct Chunk b) const { return a.index < b.index; } };
-    //bool cmp = [](struct Chunk &a, struct Chunk &b) { return a.index < b.index; };
-    std::set<Chunk> unasmb; 
-    size_t first_unread; // index of first byte in _output ByteStream wrt whole stream
+        std::string data;
+        size_t index;
+    };
+    std::list<Chunk> unasmb;
     size_t first_unasmb;
     size_t n_unasmb_bytes;
     bool eof_set;
     size_t last_byte;
 
-    //! \brief Returns the offset index in unassembled ring buffer
-    // todo: make const
-    // const size_t rbi(const size_t i) { return (i + const_cast<const size_t>(unasmb_vbegin)) % _capacity; }
-    // size_t rbi(size_t i) { return (i + unasmb_vbegin) % _capacity; }
+    //! \brief Merge any overlapping existing chunks into the new_chunk
+    bool merge(std::list<Chunk> &chunks, Chunk &new_chunk);
+
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
     //! \note This capacity limits both the bytes that have been reassembled,
