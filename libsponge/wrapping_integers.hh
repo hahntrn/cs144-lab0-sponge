@@ -3,13 +3,13 @@
 
 #include <cstdint>
 #include <ostream>
+#include <cmath>
 
 //! \brief A 32-bit integer, expressed relative to an arbitrary initial sequence number (ISN)
 //! \note This is used to express TCP sequence numbers (seqno) and acknowledgment numbers (ackno)
 class WrappingInt32 {
   private:
     uint32_t _raw_value;  //!< The raw 32-bit stored integer
-
   public:
     //! Construct from a raw 32-bit unsigned integer
     explicit WrappingInt32(uint32_t raw_value) : _raw_value(raw_value) {}
