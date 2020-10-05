@@ -27,14 +27,14 @@ StreamReassembler::StreamReassembler(const size_t capacity)
 bool StreamReassembler::merge(std::list<Chunk> &chunks, Chunk &new_chunk) {
     // [new0, new1) new chunk's byte number range
     // [cur0, cur1) cur chunk's byte number ramge
-    size_t new0 = new_chunk.index;
-    size_t new1 = new_chunk.index + new_chunk.data.size();
+    const size_t new0 = new_chunk.index;
+    const size_t new1 = new_chunk.index + new_chunk.data.size();
 
     // if new chunk of data overlaps with any existing unassembled chunk, merge them
     auto it = chunks.begin();
     while (it != chunks.end()) {
-        size_t cur0 = it->index;
-        size_t cur1 = it->index + it->data.size();
+        const size_t cur0 = it->index;
+        const size_t cur1 = it->index + it->data.size();
         if (cur0 <= new0 && new1 <= cur1) {
             // new data already contained in an existing chunk, exit early
             return false;
@@ -73,7 +73,7 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     }
 
     // some part of new chunk of data is within the receiver advertised window
-    size_t first_unacceptable = first_unasmb + _capacity - _output.buffer_size();
+    const size_t first_unacceptable = first_unasmb + _capacity - _output.buffer_size();
     if (index + data.size() >= first_unasmb && index < first_unacceptable) {
         Chunk new_chunk = {data, index};
 
