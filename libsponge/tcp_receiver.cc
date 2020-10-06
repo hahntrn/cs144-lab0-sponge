@@ -1,5 +1,4 @@
 #include "tcp_receiver.hh"
-#include <iostream>
 
 // Dummy implementation of a TCP receiver
 
@@ -15,22 +14,22 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
     cout << endl << "seg len: " << seg.length_in_sequence_space() << endl;
     cout << "header summary: " << endl << seg.header().summary() << endl;
 
-    if (fin_received) return;
+    //if (fin_received) return;
     const TCPHeader &header = seg.header();
     if (header.syn) {
         syn_received = true;
-        isn = header.seqno + 1;
+        isn = header.seqno;
     }
-    if (!syn_received) return;
+    //if (!syn_received) return;
     if (header.fin) {
         fin_received = true;
         //_reassembler.stream_out().input_ended();
     }
-    const uint64_t abs_seqno = unwrap(header.seqno + 1, isn, checkpoint);
+    const uint64_t abs_seqno = unwrap(header.seqno, isn, checkpoint);
     const string data = seg.payload().copy();
     //if (abs_seqno < ackno().value().raw_value() || abs_seqno + data.size() >= window_size()) return;
     cout << "pushing " << data << " to index " << abs_seqno << " with offset " << isn << endl << endl;
-    _reassembler.push_substring(data, abs_seqno, header.fin); // -1 for SYN
+    _reassembler.push_substring(data, abs_seqno + 1, header.fin); // -1 for SYN
     checkpoint = abs_seqno;
 }
 

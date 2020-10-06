@@ -6,6 +6,7 @@
 #include "tcp_segment.hh"
 #include "wrapping_integers.hh"
 #include <string>
+#include <iostream>
 
 #include <optional>
 
@@ -33,7 +34,7 @@ class TCPReceiver {
     //!                 store in its buffers at any give time.
     TCPReceiver(const size_t capacity) : _reassembler(capacity), 
         _capacity(capacity), syn_received(false), fin_received(false),
-        isn(0), checkpoint(0) {}
+        isn(0), checkpoint(0) { std::cout << "    >>>>>>>>>> new stream!" << std::endl; }
 
     //! \name Accessors to provide feedback to the remote TCPSender
     //!@{
