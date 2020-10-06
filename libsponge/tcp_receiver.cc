@@ -29,8 +29,8 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
     const string data = seg.payload().copy();
     //if (abs_seqno < ackno().value().raw_value() || abs_seqno + data.size() >= window_size()) return;
     cout << "pushing " << data << " to index " << abs_seqno << " with offset " << isn << endl << endl;
-    _reassembler.push_substring(data, abs_seqno + 1, header.fin); // -1 for SYN
-    checkpoint = abs_seqno;
+    _reassembler.push_substring(data, abs_seqno, header.fin); // -1 for SYN
+    checkpoint = abs_seqno + data.size();
 }
 
 optional<WrappingInt32> TCPReceiver::ackno() const {
