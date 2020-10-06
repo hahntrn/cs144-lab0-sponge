@@ -19,17 +19,18 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
     if (header.syn) {
         syn_received = true;
         isn = header.seqno;
+        cout << "setting isn: " << isn << endl;
     }
-    //if (!syn_received) return;
+    if (!syn_received) return;
     if (header.fin) {
         fin_received = true;
-        //_reassembler.stream_out().input_ended();
+        _reassembler.stream_out().end_input();
     }
     const uint64_t abs_seqno = unwrap(header.seqno, isn, checkpoint);
     const string data = seg.payload().copy();
     //if (abs_seqno < ackno().value().raw_value() || abs_seqno + data.size() >= window_size()) return;
-    cout << "pushing " << data << " to index " << abs_seqno << " with offset " << isn << endl << endl;
-    _reassembler.push_substring(data, abs_seqno, header.fin); // -1 for SYN
+    cout << "pushing " << data << " to index " << abs_seqno - !header.syn << " with offset " << isn << endl << endl;
+    _reassembler.push_substring(data, abs_seqno - !header.syn, header.fin); // -1 for SYN
     checkpoint = abs_seqno + data.size();
 }
 
@@ -39,7 +40,8 @@ optional<WrappingInt32> TCPReceiver::ackno() const {
         //     return isn + _reassembler.stream_out().bytes_written() + 2;
         // }
         // return isn + _reassembler.stream_out().bytes_written() + 1;
-        return isn + _reassembler.stream_out().bytes_written() + syn_received + fin_received;
+        return isn + _reassembler.stream_out().bytes_written() 
+            + syn_received + _reassembler.stream_out().input_ended(); //fin_received
     }        
     return {};
 }
