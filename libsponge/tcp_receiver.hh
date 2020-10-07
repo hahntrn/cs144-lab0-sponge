@@ -5,10 +5,10 @@
 #include "stream_reassembler.hh"
 #include "tcp_segment.hh"
 #include "wrapping_integers.hh"
-#include <string>
-#include <iostream>
 
+#include <iostream>
 #include <optional>
+#include <string>
 
 //! \brief The "receiver" part of a TCP implementation.
 
@@ -29,10 +29,7 @@ class TCPReceiver {
     //!
     //! \param capacity the maximum number of bytes that the receiver will
     //!                 store in its buffers at any give time.
-    TCPReceiver(const size_t capacity) : _reassembler(capacity), 
-        _capacity(capacity), syn_received(false),
-        isn(0) { 
-        }
+    TCPReceiver(const size_t capacity) : _reassembler(capacity), _capacity(capacity), syn_received(false), isn(0) {}
 
     //! \name Accessors to provide feedback to the remote TCPSender
     //!@{

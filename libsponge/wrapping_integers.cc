@@ -20,7 +20,6 @@ WrappingInt32 wrap(uint64_t n, WrappingInt32 isn) {
 
 uint64_t diff(uint64_t a, uint64_t b) { return (a < b) ? b - a : a - b; }
 
-
 //! Transform a WrappingInt32 into an "absolute" 64-bit sequence number (zero-indexed)
 //! \param n The relative sequence number
 //! \param isn The initial sequence number
@@ -34,9 +33,9 @@ uint64_t diff(uint64_t a, uint64_t b) { return (a < b) ? b - a : a - b; }
 uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
     // absolute value of n wrt isn
     const uint32_t abs_n = (n.raw_value() >= isn.raw_value()) ? n - isn : (1ul << 32) - (isn - n);
-    
+
     // number of wraparounds if we put checkpoint into a WrappingInt32
-    uint64_t n_wraps = checkpoint / (1ul << 32); 
+    uint64_t n_wraps = checkpoint / (1ul << 32);
     const uint64_t a = abs_n + n_wraps * (1ul << 32);
     // make sure a and b: one above, one below checkpoint
     n_wraps += a < checkpoint ? 1 : -1;
@@ -44,4 +43,3 @@ uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
 
     return (diff(checkpoint, a) > diff(checkpoint, b)) ? b : a;
 }
-
