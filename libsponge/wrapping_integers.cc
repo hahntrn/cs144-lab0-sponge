@@ -32,23 +32,16 @@ uint64_t diff(uint64_t a, uint64_t b) { return (a < b) ? b - a : a - b; }
 //! and the other stream runs from the remote TCPSender to the local TCPReceiver and
 //! has a different ISN.
 uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
-    //abs_n = n - isn;
-    //if (abs_n < 0) abs_n += MOD32;
-    uint64_t n_wraps = checkpoint / (1ul << 32); 
-    uint32_t abs_n;
-    if (n.raw_value() >= isn.raw_value()) {
-        abs_n = n - isn;
-    } else {
-        abs_n = (1ul << 32) - (isn - n);
-    }
+    // absolute value of n wrt isn
+    const uint32_t abs_n = (n.raw_value() >= isn.raw_value()) ? n - isn : (1ul << 32) - (isn - n);
     
-    // a and b one above one below
-    uint64_t a = abs_n + n_wraps * (1ul << 32);
+    // number of wraparounds if we put checkpoint into a WrappingInt32
+    uint64_t n_wraps = checkpoint / (1ul << 32); 
+    const uint64_t a = abs_n + n_wraps * (1ul << 32);
+    // make sure a and b: one above, one below checkpoint
     n_wraps += a < checkpoint ? 1 : -1;
-    uint64_t b = abs_n + n_wraps * (1ul << 32);
+    const uint64_t b = abs_n + n_wraps * (1ul << 32);
 
-    if (diff(checkpoint, a) > diff(checkpoint, b)) return b;
-
-    return a;
+    return (diff(checkpoint, a) > diff(checkpoint, b)) ? b : a;
 }
 

@@ -11,28 +11,19 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 void TCPReceiver::segment_received(const TCPSegment &seg) {
-    const TCPHeader &header = seg.header();
-    if (header.syn) {
+    if (seg.header().syn) {
         syn_received = true;
-        isn = header.seqno;
+        isn = seg.header().seqno;
     }
     if (!syn_received) return;
-    if (header.fin) {
-        fin_received = true;
-    }
-    uint64_t abs_seqno = unwrap(header.seqno, isn, checkpoint);
-    //if (abs_seqno > 0) abs_seqno--;
-    const string data = seg.payload().copy();
-    //cout << endl;
-    //cout << "data: " << data << " at " << abs_seqno - !header.syn << endl;
-    //cout << "unasmb bytes " << _reassembler.unassembled_bytes() << endl;
-    //cout << "rem cap      " << _reassembler.stream_out().remaining_capacity() << endl;
-    //cout << "t bytes writ " << _reassembler.stream_out().bytes_written() << endl;
-    _reassembler.push_substring(data, abs_seqno - !header.syn, header.fin); // -1 for SYN
-    checkpoint = _reassembler.stream_out().bytes_written() + 1;
+
+    uint64_t abs_seqno = unwrap(seg.header().seqno, isn, _reassembler.stream_out().bytes_written() + 1);
+    // -1 from absolute sequence number if we have a SYN bit
+    _reassembler.push_substring(seg.payload().copy(), abs_seqno - !seg.header().syn, seg.header().fin); 
 }
 
 optional<WrappingInt32> TCPReceiver::ackno() const {
+    // +1 if we've seen a SYN flag, +1 if we've read up to the FIN flag in the reassembler
     if (syn_received) {
         return wrap(_reassembler.stream_out().bytes_written() 
             + syn_received + _reassembler.stream_out().input_ended(), isn);
