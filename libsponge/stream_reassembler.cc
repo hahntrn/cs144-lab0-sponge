@@ -35,20 +35,20 @@ bool StreamReassembler::merge(std::list<Chunk> &chunks, Chunk &new_chunk) {
     while (it != chunks.end()) {
         const size_t cur0 = it->index;
         const size_t cur1 = it->index + it->data.size();
-        if (cur0 <= new0 && new1 <= cur1 && new0 <= cur1 && cur0 <= new0) {
+        if (cur0 <= new0 && new1 <= cur1) {
             // new data already contained in an existing chunk, exit early
             return false;
-        } else if (new0 <= cur0 && cur1 <= new1 && new0 <= cur1 && cur0 <= new1) {
+        } else if (new0 <= cur0 && cur1 <= new1) {
             // new chunk encapsulates an existing chunk, remove to replace w/ new
             n_unasmb_bytes -= it->data.size();
             it = chunks.erase(it);
-        } else if (cur0 <= new0 && new0 <= cur1 && cur1 <= new1 && cur0 <= new1) {
+        } else if (cur0 <= new0 && new0 <= cur1) {
             // new chunk overlaps end of current chunk, prepend cur chunk's data to new data
             new_chunk.data = it->data.substr(0, new0 - cur0) + new_chunk.data;
             new_chunk.index = cur0;
             n_unasmb_bytes -= it->data.size();
             it = chunks.erase(it);
-        } else if (new0 <= cur0 && cur0 <= new1 && new1 <= cur1 && new0 <= cur1) {
+        } else if (new0 <= cur0 && cur0 <= new1) {
             // new chunk overlaps beginning of cur chunk, append
             new_chunk.data += it->data.substr(new1 - cur0);
             n_unasmb_bytes -= it->data.size();
@@ -74,7 +74,6 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
 
     // some part of new chunk of data is within the receiver advertised window
     const size_t first_unacceptable = first_unasmb + _capacity - _output.buffer_size();
-    cout << "first unacc " << first_unacceptable << endl;
     if (index + data.size() >= first_unasmb && index < first_unacceptable) {
         Chunk new_chunk = {data, index};
 
@@ -95,7 +94,6 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         // if can be assembled, write directly to ByteStream, else add to unasmb
         if (new_chunk.index == first_unasmb) {
             _output.write(new_chunk.data);
-            cout << "*** writing " << new_chunk.data.size() << " bytes : " << new_chunk.data << endl;
             first_unasmb += new_chunk.data.size();
         } else {
             n_unasmb_bytes += new_chunk.data.size();
