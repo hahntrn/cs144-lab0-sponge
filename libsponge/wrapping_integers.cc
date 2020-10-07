@@ -32,7 +32,6 @@ uint64_t diff(uint64_t a, uint64_t b) { return (a < b) ? b - a : a - b; }
 //! and the other stream runs from the remote TCPSender to the local TCPReceiver and
 //! has a different ISN.
 uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
-    DUMMY_CODE(n, isn, checkpoint);
     //abs_n = n - isn;
     //if (abs_n < 0) abs_n += MOD32;
     uint64_t n_wraps = checkpoint / (1ul << 32); 

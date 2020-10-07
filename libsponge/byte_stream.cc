@@ -23,16 +23,23 @@ ByteStream::ByteStream(const size_t capacity)
     , _error(false) {}
 
 size_t ByteStream::write(const string &data) {
-    if (input_ended()) {
-        set_error();
-    }
+    //if (eof()) {
+    //    set_error();
+    //}
     const size_t n_bytes_to_write = std::min(data.length(), remaining_capacity());
-
+    //cout << "BS: writing " << n_bytes_to_write << endl;
+    //cout << "data begin: " << data_begin << endl;
+    //cout << "cur size    " << cur_size << endl;
+    //cout << "before: "; for(size_t i=0; i<buffer.size();i++) cout << buffer[i] << ", "; cout << endl;
     for (size_t i = 0; i < n_bytes_to_write; i++) {
         buffer[(data_begin + cur_size + i) % max_capacity] = data[i];
     }
     n_bytes_written += n_bytes_to_write;
     cur_size += n_bytes_to_write;
+    //cout << "Done writing n bytes to BS: " << peek_output(n_bytes_to_write) << endl;
+    //cout << "after: "; for(size_t i=0; i<buffer.size();i++) cout << buffer[i] << ", "; cout << endl;
+    //cout << "data begin: " << data_begin << endl;
+    //cout << "cur size    " << cur_size << endl;
     return n_bytes_to_write;
 }
 
@@ -52,8 +59,13 @@ string ByteStream::peek_output(const size_t len) const {
 
     // data is wrapped around the buffer, broken up in the middle
     std::string s1(buffer.begin() + data_begin, buffer.end());
-    std::string s2(buffer.begin(), buffer.begin() + (data_begin + len_ret) % cur_size);
+    std::string s2(buffer.begin(), buffer.begin() + ((data_begin + len_ret) 
+            % max_capacity));
+    //cout << "end of s2 " << (data_begin + len_ret) % cur_size << endl;
+    //cout << "s1: " << s1 << endl;
+    //cout << "s2: " << s2 << endl;
     s1.append(s2);
+    //cout << "returning: " << len_ret << " bytes: " << s1 << endl;
     return s1;
 }
 
@@ -68,9 +80,9 @@ void ByteStream::pop_output(const size_t len) {
 //! \param[in] len bytes will be popped and returned
 //! \returns a string
 std::string ByteStream::read(const size_t len) {
-    if (eof()) {
-        set_error();
-    }
+    //if (eof()) {
+    //    set_error();
+    //}
     std::string ret = peek_output(len);
     pop_output(ret.length());
     return ret;
