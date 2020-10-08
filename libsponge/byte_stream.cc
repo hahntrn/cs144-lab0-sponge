@@ -23,9 +23,6 @@ ByteStream::ByteStream(const size_t capacity)
     , _error(false) {}
 
 size_t ByteStream::write(const string &data) {
-    if (input_ended()) {
-        set_error();
-    }
     const size_t n_bytes_to_write = std::min(data.length(), remaining_capacity());
 
     for (size_t i = 0; i < n_bytes_to_write; i++) {
@@ -68,9 +65,6 @@ void ByteStream::pop_output(const size_t len) {
 //! \param[in] len bytes will be popped and returned
 //! \returns a string
 std::string ByteStream::read(const size_t len) {
-    if (eof()) {
-        set_error();
-    }
     std::string ret = peek_output(len);
     pop_output(ret.length());
     return ret;
