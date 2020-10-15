@@ -55,7 +55,9 @@ class TCPSender {
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
-    
+
+    uint64_t _abs_ackno{0};
+    uint64_t _n_bytes_in_flight{0};
     //! window size the receiver is expecting
     size_t _window_size{1};
 
