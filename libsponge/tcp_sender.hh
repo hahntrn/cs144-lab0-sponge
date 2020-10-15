@@ -65,6 +65,7 @@ class TCPSender {
     Timer _timer;
 
     size_t _n_consec_retransmissions{0};
+    uint64_t _n_bytes_in_flight{0};
 
   public:
     //! Initialize a TCPSender
