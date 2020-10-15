@@ -8,6 +8,20 @@
 
 #include <functional>
 #include <queue>
+#include <map>
+
+//class RetransmissionTimer {
+//  private:
+//    size_t _time_elapsed;
+//
+//  public:
+//    RetransmissionTimer();
+//    void start();
+//    void stop();
+//    void reset();
+//    void update(size_t _time_diff);
+//    size_t time_elapsed();
+//};
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -17,6 +31,15 @@
 //! segments if the retransmission timer expires.
 class TCPSender {
   private:
+    struct Timer {
+        size_t time_elapsed;
+        size_t timeout;
+        bool running;
+        bool expired() { return time_elapsed >= timeout; }
+        void start(size_t new_timeout) { time_elapsed = 0; timeout = new_timeout; }
+    };
+
+
     //! our initial sequence number, the number for our SYN.
     WrappingInt32 _isn;
 
@@ -25,12 +48,23 @@ class TCPSender {
 
     //! retransmission timer for the connection
     unsigned int _initial_retransmission_timeout;
+    unsigned int _rto;
 
     //! outgoing stream of bytes that have not yet been sent
     ByteStream _stream;
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
+    
+    //! window size the receiver is expecting
+    size_t _window_size{1};
+
+    //! segments sent but not yet acknowledged by receiver, sorted by absolute seqno
+    std::map<uint64_t, TCPSegment> _outstanding_segments;
+    
+    Timer _timer;
+
+    size_t _n_consec_retransmissions{0};
 
   public:
     //! Initialize a TCPSender
@@ -88,5 +122,6 @@ class TCPSender {
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
 };
+
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH
