@@ -21,25 +21,25 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
 uint64_t TCPSender::bytes_in_flight() const { return _n_bytes_in_flight; }
 
 void TCPSender::fill_window() {
-    if (_stream.buffer_empty() && _next_seqno > 0) return;
+    //if (_stream.buffer_empty() && _next_seqno > 0) return;
     //if (!_timer.started()) _timer.start();
     if (!_timer.running) _timer.start(_initial_retransmission_timeout);
-    
-    uint16_t n_bytes_to_send = _window_size == 0 ? 1 : min(_stream.buffer_size(), min(_window_size, TCPConfig::MAX_PAYLOAD_SIZE));
+    //
+    // TODO: there's something wrong here...
+    uint16_t n_bytes_to_send = min(_stream.buffer_size(), min(max(size_t(1),_window_size), TCPConfig::MAX_PAYLOAD_SIZE));
 
     TCPHeader hdr;
-    cout << "next seqno: " << _next_seqno << endl;
-    cout << "bytes left: " <<_stream.buffer_size()<<endl;
+    //cout << "next seqno: " << _next_seqno << endl;
+    //cout << "bytes left: " <<_stream.buffer_size()<<endl;
     hdr.seqno = wrap(_next_seqno, _isn);
     if (_next_seqno == 0) {
-        cout << "set SYN" << endl;
+        //cout << "set SYN" << endl;
         hdr.syn = true;
         if (n_bytes_to_send > 0) n_bytes_to_send--;
     }
     // TODO: when to set fin?
-    cout << "n bytes to send: "<<n_bytes_to_send<<endl;
     if (_stream.eof()) {
-        cout << "set FIN" << endl;
+        //cout << "set FIN" << endl;
         hdr.fin = true;
         if (n_bytes_to_send > 0) n_bytes_to_send--;
     }
@@ -47,12 +47,13 @@ void TCPSender::fill_window() {
     TCPSegment seg;
     seg.header() = hdr;
     seg.payload() = _stream.read(n_bytes_to_send);
-    cout<<"header: "<<seg.header().summary()<<endl;
     _segments_out.push(seg);
     _outstanding_segments[_next_seqno] = seg;
     _n_bytes_in_flight += n_bytes_to_send;
     _window_size -= n_bytes_to_send;
-    cout<<"bytes in flight" <<_n_bytes_in_flight<<endl;
+    //cout << "n bytes to send: "<<n_bytes_to_send<<endl;
+    //cout<<"header: "<<seg.header().summary()<<endl;
+    //cout<<"bytes in flight: " <<_n_bytes_in_flight<<endl;
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
@@ -74,7 +75,9 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         if (_stream.buffer_size() > 0) _timer.start(_initial_retransmission_timeout);
         _n_consec_retransmissions = 0;
     }
-    while (_window_size > 0) fill_window();
+    //while (_window_size > 0) fill_window();
+    fill_window();
+
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
