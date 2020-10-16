@@ -9,20 +9,6 @@
 #include <functional>
 #include <queue>
 #include <map>
-#include <iostream>
-
-//class RetransmissionTimer {
-//  private:
-//    size_t _time_elapsed;
-//
-//  public:
-//    RetransmissionTimer();
-//    void start();
-//    void stop();
-//    void reset();
-//    void update(size_t _time_diff);
-//    size_t time_elapsed();
-//};
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -37,11 +23,9 @@ class TCPSender {
         size_t timeout;
         bool running;
         bool expired() { bool ring = time_elapsed >= timeout; if(ring) running = false;
-            std::cout<<"timer expired? "<<time_elapsed<<"/"<<timeout<<std::endl;
             return ring; 
         }
         void start(size_t new_timeout) { time_elapsed = 0; timeout = new_timeout; running = true; 
-            std::cout<<"setting timer for "<<timeout<<std::endl;
         }
     };
 
@@ -61,6 +45,7 @@ class TCPSender {
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
 
+    //! the (absolute) sequence number of the first byte the receiver has received
     uint64_t _abs_ackno{0};
 
     //! window size the receiver is expecting
@@ -69,10 +54,12 @@ class TCPSender {
     //! segments sent but not yet acknowledged by receiver, sorted by absolute seqno
     std::map<uint64_t, TCPSegment> _outstanding_segments;
     
+    //! retransmission timer
     Timer _timer;
-
+    
+    //! number of times we've sent the same segment
     size_t _n_consec_retransmissions{0};
-    bool _done_sending = false;
+
   public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
