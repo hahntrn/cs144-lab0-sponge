@@ -22,6 +22,7 @@ uint64_t TCPSender::bytes_in_flight() const { return _next_seqno - _abs_ackno; }
 //uint64_t TCPSender::unfilled_window_size() const { return _abs_ackno + _window_size - _next_seqno; }
 
 void TCPSender::fill_window() {
+    if (_stream.eof() && _next_seqno >= _stream.bytes_written() + 2) {cout<<"exiting..."<<endl;return;}
     _done_sending = false;
     if (!_timer.running) _timer.start(_initial_retransmission_timeout);
     uint16_t n_bytes_to_send = min(_window_size - bytes_in_flight(), TCPConfig::MAX_PAYLOAD_SIZE); //(_window_size < TCPConfig::MAX_PAYLOAD_SIZE ? _window_size : TCPConfig::MAX_PAYLOAD_SIZE);
@@ -70,9 +71,13 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     if (new_abs_ackno <= _abs_ackno) return;
     _abs_ackno = new_abs_ackno;
 
-    cout<<"ack received: "<<_abs_ackno<<endl;
+    cout<<"ack received: "<<_abs_ackno<<" ("<<ackno<<")"<<endl;
     cout<<"bytes in flight: " << bytes_in_flight()<<endl;
-
+    cout<<"eof? "<<_stream.eof()<<endl;
+    cout<<"seqno abs: "<<_next_seqno<<" "<<_stream.bytes_written()+2<<endl;
+    
+    //if (_stream.eof() && (_next_seqno == _stream.bytes_written() + 2) && bytes_in_flight() == 0) {cout<<"exiting....."<<endl;return;}
+    cout<<"didn't exit"<<endl;
     auto it = _outstanding_segments.begin();
     while (it != _outstanding_segments.end() &&
             it->first + it->second.length_in_sequence_space() <= _abs_ackno) {
