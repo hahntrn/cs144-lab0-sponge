@@ -9,6 +9,7 @@
 #include <functional>
 #include <queue>
 #include <map>
+#include <iostream>
 
 //class RetransmissionTimer {
 //  private:
@@ -35,8 +36,13 @@ class TCPSender {
         size_t time_elapsed;
         size_t timeout;
         bool running;
-        bool expired() { return time_elapsed >= timeout; }
-        void start(size_t new_timeout) { time_elapsed = 0; timeout = new_timeout; }
+        bool expired() { bool ring = time_elapsed >= timeout; if(ring) running = false;
+            std::cout<<"timer expired? "<<time_elapsed<<"/"<<timeout<<std::endl;
+            return ring; 
+        }
+        void start(size_t new_timeout) { time_elapsed = 0; timeout = new_timeout; running = true; 
+            std::cout<<"setting timer for "<<timeout<<std::endl;
+        }
     };
 
 
@@ -48,7 +54,6 @@ class TCPSender {
 
     //! retransmission timer for the connection
     unsigned int _initial_retransmission_timeout;
-    unsigned int _rto;
 
     //! outgoing stream of bytes that have not yet been sent
     ByteStream _stream;
@@ -57,7 +62,7 @@ class TCPSender {
     uint64_t _next_seqno{0};
 
     uint64_t _abs_ackno{0};
-    uint64_t _n_bytes_in_flight{0};
+
     //! window size the receiver is expecting
     size_t _window_size{1};
 
@@ -67,7 +72,7 @@ class TCPSender {
     Timer _timer;
 
     size_t _n_consec_retransmissions{0};
-
+    bool _done_sending = false;
   public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
