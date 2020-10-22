@@ -7,8 +7,8 @@
 #include "wrapping_integers.hh"
 
 #include <functional>
-#include <queue>
 #include <map>
+#include <queue>
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -18,17 +18,20 @@
 //! segments if the retransmission timer expires.
 class TCPSender {
   private:
+    //! Retransmission timer
     struct Timer {
         size_t time_elapsed;
         size_t timeout;
-        bool running;
-        bool expired() { bool ring = time_elapsed >= timeout; if(ring) running = false;
-            return ring; 
-        }
-        void start(size_t new_timeout) { time_elapsed = 0; timeout = new_timeout; running = true; 
+
+        //! return true if time elapsed exceeds the timeout we set
+        bool expired() { return time_elapsed >= timeout; }
+
+        //! start a timer that expires after new_timeout milliseconds
+        void start(size_t new_timeout) {
+            time_elapsed = 0;
+            timeout = new_timeout;
         }
     };
-
 
     //! our initial sequence number, the number for our SYN.
     WrappingInt32 _isn;
@@ -53,10 +56,10 @@ class TCPSender {
 
     //! segments sent but not yet acknowledged by receiver, sorted by absolute seqno
     std::map<uint64_t, TCPSegment> _outstanding_segments;
-    
+
     //! retransmission timer
     Timer _timer;
-    
+
     //! number of times we've sent the same segment
     size_t _n_consec_retransmissions{0};
 
@@ -116,6 +119,5 @@ class TCPSender {
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
 };
-
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH
