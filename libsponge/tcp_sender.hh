@@ -7,21 +7,8 @@
 #include "wrapping_integers.hh"
 
 #include <functional>
-#include <queue>
 #include <map>
-
-//class RetransmissionTimer {
-//  private:
-//    size_t _time_elapsed;
-//
-//  public:
-//    RetransmissionTimer();
-//    void start();
-//    void stop();
-//    void reset();
-//    void update(size_t _time_diff);
-//    size_t time_elapsed();
-//};
+#include <queue>
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -31,14 +18,20 @@
 //! segments if the retransmission timer expires.
 class TCPSender {
   private:
+    //! Retransmission timer
     struct Timer {
         size_t time_elapsed;
         size_t timeout;
-        bool running;
-        bool expired() { return time_elapsed >= timeout; }
-        void start(size_t new_timeout) { time_elapsed = 0; timeout = new_timeout; }
-    };
 
+        //! return true if time elapsed exceeds the timeout we set
+        bool expired() { return time_elapsed >= timeout; }
+
+        //! start a timer that expires after new_timeout milliseconds
+        void start(size_t new_timeout) {
+            time_elapsed = 0;
+            timeout = new_timeout;
+        }
+    };
 
     //! our initial sequence number, the number for our SYN.
     WrappingInt32 _isn;
@@ -48,22 +41,26 @@ class TCPSender {
 
     //! retransmission timer for the connection
     unsigned int _initial_retransmission_timeout;
-    unsigned int _rto;
 
     //! outgoing stream of bytes that have not yet been sent
     ByteStream _stream;
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
-    
+
+    //! the (absolute) sequence number of the first byte the receiver has received
+    uint64_t _abs_ackno{0};
+
     //! window size the receiver is expecting
     size_t _window_size{1};
 
     //! segments sent but not yet acknowledged by receiver, sorted by absolute seqno
     std::map<uint64_t, TCPSegment> _outstanding_segments;
-    
+
+    //! retransmission timer
     Timer _timer;
 
+    //! number of times we've sent the same segment
     size_t _n_consec_retransmissions{0};
     uint64_t _n_bytes_in_flight{0};
 
@@ -123,6 +120,5 @@ class TCPSender {
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
 };
-
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH
