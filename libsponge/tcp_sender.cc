@@ -21,7 +21,10 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
     , _outstanding_segments()
     , _timer{0, retx_timeout} {}
 
-uint64_t TCPSender::bytes_in_flight() const { return _next_seqno - _abs_ackno; }
+uint64_t TCPSender::bytes_in_flight() const { 
+    //cout <<"bif: "<< _next_seqno<< ", "<< _abs_ackno<<endl;
+    //return _next_seqno < _abs_ackno ? 0 : 
+    return _next_seqno - _abs_ackno; }
 
 void TCPSender::fill_window() {
     // this means we've already sent the segment with FIN flag
@@ -29,10 +32,12 @@ void TCPSender::fill_window() {
         return;
 
     uint16_t n_bytes_to_send = _window_size - bytes_in_flight();
+
     // if space left to fill in window is more than the max payload
     // or we sent out more bytes than the window size and n_bytes_to_send overflows
     if (n_bytes_to_send > TCPConfig::MAX_PAYLOAD_SIZE)
         n_bytes_to_send = TCPConfig::MAX_PAYLOAD_SIZE;
+
     // if the receiver reports a window size of 0 but we have stuff to send
     if (_window_size == 0 && bytes_in_flight() == 0)
         n_bytes_to_send = 1;
@@ -60,7 +65,7 @@ void TCPSender::fill_window() {
     _segments_out.push(seg);
     _outstanding_segments[_next_seqno] = seg;
     _next_seqno += seg.length_in_sequence_space();
-    _timer.start(_initial_retransmission_timeout);
+    if (!timer.expired()) _timer.start(_initial_retransmission_timeout);
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
@@ -69,7 +74,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     _window_size = window_size;  // update window size even if
 
     uint64_t new_abs_ackno = unwrap(ackno, _isn, _abs_ackno);
-    if (new_abs_ackno <= _abs_ackno)
+    if (new_abs_ackno <= _abs_ackno || new_abs_ackno > _next_seqno)
         return;
     _abs_ackno = new_abs_ackno;
 

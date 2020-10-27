@@ -9,6 +9,7 @@
 #include <functional>
 #include <map>
 #include <queue>
+#include <list>
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -62,6 +63,9 @@ class TCPSender {
 
     //! number of times we've sent the same segment
     size_t _n_consec_retransmissions{0};
+
+    //! num bytes in flight
+    uint64_t _n_bytes_in_flight{0};
 
   public:
     //! Initialize a TCPSender
