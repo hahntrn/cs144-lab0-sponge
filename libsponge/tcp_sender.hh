@@ -62,7 +62,6 @@ class TCPSender {
 
     //! number of times we've sent the same segment
     size_t _n_consec_retransmissions{0};
-    uint64_t _n_bytes_in_flight{0};
 
   public:
     //! Initialize a TCPSender
