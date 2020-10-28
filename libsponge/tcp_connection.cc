@@ -20,6 +20,11 @@ size_t TCPConnection::unassembled_bytes() const { return _receiver.unassembled_b
 
 size_t TCPConnection::time_since_last_segment_received() const { return _last_segm_recv_timer; }
 
+void TCPConnection::try_switching_close_mode() {
+    if (!_sender.stream_in().eof() && _receiver.stream_out().input_ended())
+        _linger_after_streams_finish = false;
+}
+
 void TCPConnection::segment_received(const TCPSegment &seg) {
     _last_segm_recv_timer = 0;
     if (seg.header().rst) {
@@ -30,22 +35,35 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     if (seg.header().ack) {
         _sender.ack_received(seg.header().ackno, seg.header().win);
     }
+    if (seg.header().syn) {
+        connect();
+    }
     
     cout<<">> received segm: "<<seg.header().summary()<<",data="<<seg.payload().copy()<<endl;
     cout<<">> unasmb bytes: "<<_receiver.unassembled_bytes()<<endl;
 
     // if segment non-empty and we need to return an ack but no segments are ready to be sent out
     // makes sure at least one segment is sent in reply
-    if (seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
+    if (active() && seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
         cout<<">> queue empty, make empty segment to ack"<<endl;
         _sender.send_empty_segment();
     }
+
+    
+    // cout<<">> >> stream out not oef? "<<_sender.stream_in().eof()
+    //         <<": " <<_sender.stream_in().input_ended()
+    //         <<" && "<<_sender.stream_in().buffer_empty()<<endl
+    //     <<">> >> stream in input ended ie. fin recv'd? "<<_receiver.stream_out().input_ended()<<endl;
+    try_switching_close_mode();
     send_segments();
 }
 
 bool TCPConnection::active() const { return _active; }
 
 void TCPConnection::send_segments() {
+    if (!active())
+        return;
+
     while (!_sender.segments_out().empty()) {
         //? would you ever *not* send a segment? window size?? isn't that 
         // taken care of in the sender??
@@ -71,11 +89,15 @@ size_t TCPConnection::write(const string &data) {
     
     cout<<">> writing: " <<data<<endl;
     size_t n_bytes_written = _sender.stream_in().write(data);
+
+    if (_sender.next_seqno_absolute() > 0)
+        _sender.fill_window(); 
     send_segments();
     return n_bytes_written;
 }
 
 void TCPConnection::try_closing_connection() { 
+    send_segments();
     if (!active())
         return;
 
@@ -87,11 +109,11 @@ void TCPConnection::try_closing_connection() {
         && _sender.next_seqno_absolute() == _sender.stream_in().bytes_written() + 2 
         && _sender.bytes_in_flight() == 0; //? > 0
 
-    cout<<">> >> linger? "<<_linger_after_streams_finish<<endl
-        <<">> >> active close: "<<active_close<<endl
-        <<">> >> passive close: "<<!_linger_after_streams_finish<<endl
-        <<">> >> prereq 1: "<<pr1<<endl
-        <<">> >> prereq 2 & 3: "<<pr2<<endl;
+    //cout<<">> >> linger? "<<_linger_after_streams_finish<<endl
+    //    <<">> >> active close: "<<active_close<<endl
+    //    <<">> >> passive close: "<<!_linger_after_streams_finish<<endl
+    //    <<">> >> prereq 1: "<<pr1<<endl
+    //    <<">> >> prereq 2 & 3: "<<pr2<<endl;
     if ((active_close || !_linger_after_streams_finish) && pr1 && pr2) {
         cout << ">> closing..." << endl;
         _active = false;
@@ -109,7 +131,7 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
     _sender.tick(ms_since_last_tick); 
     _last_segm_recv_timer += ms_since_last_tick;
     cout<<">> tick! "<<ms_since_last_tick<<" : "
-        <<_last_segm_recv_timer<<" / "<<10*_cfg.rt_timeout<<endl;
+       <<_last_segm_recv_timer<<" / "<<10*_cfg.rt_timeout<<endl;
 
     if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
         send_reset_segm();
@@ -117,27 +139,26 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
     }
     // TODO: section 5: end connection
     // if inbound  stream ends before tcp connection reach eof on outbound stream
-    cout<<">> >> stream out not oef? "<<!_sender.stream_in().eof()<<endl
-        <<">> >> stream in input ended ie. fin recv'd? "<<_receiver.stream_out().input_ended()<<endl;
-    if (!_sender.stream_in().eof() && _receiver.stream_out().input_ended())
-        _linger_after_streams_finish = false;
+    //cout<<">> >> stream out not oef? "<<_sender.stream_in().eof()
+    //        <<": " <<_sender.stream_in().input_ended()
+    //        <<" && "<<_sender.stream_in().buffer_empty()<<endl
+    //    <<">> >> stream in input ended ie. fin recv'd? "<<_receiver.stream_out().input_ended()<<endl;
+    try_switching_close_mode();
 
-    send_segments();
     try_closing_connection();
 }
 
 void TCPConnection::end_input_stream() { 
     cout<<">> ending input stream"<<endl;
     _sender.stream_in().end_input(); 
-    try_closing_connection();
     _sender.fill_window();
-    send_segments();
+    try_closing_connection();
 }
 
 void TCPConnection::connect() {
     cout<<endl<<">> connect"<<endl;
-   _sender.fill_window(); 
-   send_segments();
+    _sender.fill_window();
+    send_segments();
 }
 
 void TCPConnection::send_reset_segm() {
