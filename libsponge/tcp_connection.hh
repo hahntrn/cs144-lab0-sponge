@@ -29,6 +29,7 @@ class TCPConnection {
     void send_segments();
     void try_closing_connection();
     void try_switching_close_mode();
+    bool syn_sent();
 
   public:
     //! \name "Input" interface for the writer

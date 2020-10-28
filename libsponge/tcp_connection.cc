@@ -25,6 +25,8 @@ void TCPConnection::try_switching_close_mode() {
         _linger_after_streams_finish = false;
 }
 
+bool TCPConnection::syn_sent() { return _sender.next_seqno_absolute() > 0; }
+
 void TCPConnection::segment_received(const TCPSegment &seg) {
     _last_segm_recv_timer = 0;
     if (seg.header().rst) {
@@ -35,27 +37,28 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     if (seg.header().ack) {
         _sender.ack_received(seg.header().ackno, seg.header().win);
     }
-    if (seg.header().syn) {
-        connect();
-    }
     
     cout<<">> received segm: "<<seg.header().summary()<<",data="<<seg.payload().copy()<<endl;
     cout<<">> unasmb bytes: "<<_receiver.unassembled_bytes()<<endl;
 
-    // if segment non-empty and we need to return an ack but no segments are ready to be sent out
-    // makes sure at least one segment is sent in reply
-    if (active() && seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
-        cout<<">> queue empty, make empty segment to ack"<<endl;
-        _sender.send_empty_segment();
+    if (syn_sent()) {
+        // if segment non-empty and we need to return an ack but no segments are ready to be sent out
+        // makes sure at least one segment is sent in reply
+        if (active() && seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
+            cout<<">> queue empty, make empty segment to ack"<<endl;
+            _sender.send_empty_segment();
+        }
+        send_segments();
     }
-
     
+    if (seg.header().syn && !syn_sent()) {
+        connect();
+    }
     // cout<<">> >> stream out not oef? "<<_sender.stream_in().eof()
     //         <<": " <<_sender.stream_in().input_ended()
     //         <<" && "<<_sender.stream_in().buffer_empty()<<endl
     //     <<">> >> stream in input ended ie. fin recv'd? "<<_receiver.stream_out().input_ended()<<endl;
     try_switching_close_mode();
-    send_segments();
 }
 
 bool TCPConnection::active() const { return _active; }
