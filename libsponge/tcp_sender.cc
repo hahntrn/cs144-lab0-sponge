@@ -33,7 +33,7 @@ void TCPSender::fill_window() {
         uint16_t n_bytes_to_send = _window_size - bytes_in_flight();
 
         // if space left to fill in window is more than the max payload
-        // or we sent out more bytes than the window size and n_bytes_to_send overflows
+        // or we sent out more bytes than the window size, n_bytes_to_send overflows
 
         // if the receiver reports a window size of 0 but we have stuff to send
         if (_window_size == 0 && bytes_in_flight() == 0)
@@ -67,7 +67,8 @@ void TCPSender::fill_window() {
         _segments_out.push(seg);
         _outstanding_segments.push_back(OrderedSegment { _next_seqno, seg });
         _next_seqno += seg.length_in_sequence_space();
-        if (_timer.expired()) _timer.start(_initial_retransmission_timeout);
+        if (_timer.expired()) 
+            _timer.start(_initial_retransmission_timeout);
     }
 }
 
@@ -85,7 +86,8 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
          it != _outstanding_segments.end() && it->seqno + it->segment.length_in_sequence_space() <= _abs_ackno;
          it = _outstanding_segments.erase(it))
 
-        _timer.start(_initial_retransmission_timeout);
+    //? still restart timer if no new complete segments confirmed to be received?
+    _timer.start(_initial_retransmission_timeout);
     _n_consec_retransmissions = 0;
 }
 
@@ -107,3 +109,11 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
 }
 
 unsigned int TCPSender::consecutive_retransmissions() const { return _n_consec_retransmissions; }
+
+void TCPSender::send_empty_segment() {
+    TCPHeader hdr;
+    TCPSegment seg;
+    hdr.seqno = wrap(_next_seqno, _isn); //? set seqno number?
+    seg.header() = hdr;
+    _segments_out.push(seg);
+}
