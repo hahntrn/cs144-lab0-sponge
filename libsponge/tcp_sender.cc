@@ -89,6 +89,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     //? still restart timer if no new complete segments confirmed to be received?
     _timer.start(_initial_retransmission_timeout);
     _n_consec_retransmissions = 0;
+    fill_window();
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method

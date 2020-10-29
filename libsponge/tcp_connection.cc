@@ -38,13 +38,13 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         _sender.ack_received(seg.header().ackno, seg.header().win);
     }
     
-    cout<<">> received segm: "<<seg.header().summary()<<",data="<<seg.payload().copy()<<endl;
+    cout<<">> received segm: "<<seg.header().summary()<<endl;
     cout<<">> unasmb bytes: "<<_receiver.unassembled_bytes()<<endl;
 
     if (syn_sent()) {
         // if segment non-empty and we need to return an ack but no segments are ready to be sent out
         // makes sure at least one segment is sent in reply
-        if (active() && seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
+        if (seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
             cout<<">> queue empty, make empty segment to ack"<<endl;
             _sender.send_empty_segment();
         }
@@ -80,21 +80,22 @@ void TCPConnection::send_segments() {
             seg.header().ackno = possible_ackno.value();
             seg.header().win = _receiver.window_size();
         }
+        if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS)
+            seg.header().rst = true;
         _segments_out.push(seg);
 
-        cout<<">> sending segment: "<<seg.header().summary()<<",data="<<seg.payload().copy()<<endl;
+        cout<<">> sending segment: "<<seg.header().summary()<<endl;
     }
 }
 
 size_t TCPConnection::write(const string &data) {
-    if (!_sender.stream_in().input_ended())
+    if (_sender.stream_in().input_ended() || !syn_sent())
         return 0;
-    
-    cout<<">> writing: " <<data<<endl;
+    DUMMY_CODE(data);  
     size_t n_bytes_written = _sender.stream_in().write(data);
 
-    if (_sender.next_seqno_absolute() > 0)
-        _sender.fill_window(); 
+    cout<<">> writing "<<n_bytes_written<<" bytes, "<<_sender.stream_in().remaining_capacity()<<" bytes remaining."<<endl;
+    _sender.fill_window(); 
     send_segments();
     return n_bytes_written;
 }
@@ -132,12 +133,14 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
         return;
 
     _sender.tick(ms_since_last_tick); 
+
     _last_segm_recv_timer += ms_since_last_tick;
     cout<<">> tick! "<<ms_since_last_tick<<" : "
        <<_last_segm_recv_timer<<" / "<<10*_cfg.rt_timeout<<endl;
+    send_segments(); // might need to resend a segment if _sender.tick timer expires
 
     if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
-        send_reset_segm();
+        //send_reset_segm();
         reset();
     }
     // TODO: section 5: end connection
@@ -167,12 +170,12 @@ void TCPConnection::connect() {
 void TCPConnection::send_reset_segm() {
     // Your code here: need to send a RST segment to the peer
     // send empty segment, grab from back, put on output queue, set ackno and win, reset
-    cout<<">> sending reset segm"<<endl;
     TCPSegment seg;
     TCPHeader hdr;
     hdr.rst = true;
     seg.header() = hdr;
     _segments_out.push(seg);
+    cout<<">> sending reset segm: "<<seg.header().summary()<<endl;
 } 
 
 void TCPConnection::reset() {
