@@ -38,14 +38,14 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         _sender.ack_received(seg.header().ackno, seg.header().win);
     }
     
-    cout<<">> received segm: "<<seg.header().summary()<<endl;
-    cout<<">> unasmb bytes: "<<_receiver.unassembled_bytes()<<endl;
+    //cout<<">> received segm: "<<seg.header().summary()<<endl;
+    //cout<<">> unasmb bytes: "<<_receiver.unassembled_bytes()<<endl;
 
     if (syn_sent()) {
         // if segment non-empty and we need to return an ack but no segments are ready to be sent out
         // makes sure at least one segment is sent in reply
         if (seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
-            cout<<">> queue empty, make empty segment to ack"<<endl;
+            //cout<<">> recv'd non-empty segm but queue empty, make empty segment to ack"<<endl;
             _sender.send_empty_segment();
         }
         send_segments();
@@ -63,7 +63,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
 
 bool TCPConnection::active() const { return _active; }
 
-void TCPConnection::send_segments() {
+void TCPConnection::send_segments(bool rst) {
     if (!active())
         return;
 
@@ -80,11 +80,12 @@ void TCPConnection::send_segments() {
             seg.header().ackno = possible_ackno.value();
             seg.header().win = _receiver.window_size();
         }
-        if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS)
+        if (rst || _sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) 
             seg.header().rst = true;
+
         _segments_out.push(seg);
 
-        cout<<">> sending segment: "<<seg.header().summary()<<endl;
+        //cout<<">> sending segment: "<<seg.header().summary()<<endl;
     }
 }
 
@@ -94,7 +95,7 @@ size_t TCPConnection::write(const string &data) {
     DUMMY_CODE(data);  
     size_t n_bytes_written = _sender.stream_in().write(data);
 
-    cout<<">> writing "<<n_bytes_written<<" bytes, "<<_sender.stream_in().remaining_capacity()<<" bytes remaining."<<endl;
+    //cout<<">> writing "<<n_bytes_written<<" bytes, "<<_sender.stream_in().remaining_capacity()<<" bytes remaining."<<endl;
     _sender.fill_window(); 
     send_segments();
     return n_bytes_written;
@@ -105,7 +106,7 @@ void TCPConnection::try_closing_connection() {
     if (!active())
         return;
 
-    cout<<">> try closing connection: "<<endl;
+    //cout<<">> try closing connection: "<<endl;
     bool active_close = _linger_after_streams_finish 
                         && _last_segm_recv_timer >= 10 * _cfg.rt_timeout;
     bool pr1 = _receiver.stream_out().input_ended() && _receiver.unassembled_bytes() == 0;
@@ -119,12 +120,9 @@ void TCPConnection::try_closing_connection() {
     //    <<">> >> prereq 1: "<<pr1<<endl
     //    <<">> >> prereq 2 & 3: "<<pr2<<endl;
     if ((active_close || !_linger_after_streams_finish) && pr1 && pr2) {
-        cout << ">> closing..." << endl;
+        //cout << ">> closing..." << endl;
         _active = false;
     }
-    //if (_sender.bytes_in_flight() > 0) {
-    //    _sender.send_empty_segment();
-    //}
 }
 
 //! \param[in] ms_since_last_tick number of milliseconds since the last call to this method
@@ -135,51 +133,46 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
     _sender.tick(ms_since_last_tick); 
 
     _last_segm_recv_timer += ms_since_last_tick;
-    cout<<">> tick! "<<ms_since_last_tick<<" : "
-       <<_last_segm_recv_timer<<" / "<<10*_cfg.rt_timeout<<endl;
-    send_segments(); // might need to resend a segment if _sender.tick timer expires
+    //cout<<">> tick! "<<ms_since_last_tick<<" : "
+    //   <<_last_segm_recv_timer<<" / "<<10*_cfg.rt_timeout<<endl;
 
-    if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
-        //send_reset_segm();
-        reset();
+    if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS
+            && _sender.segments_out().empty()) {
+        //cout<<"too many consecutive retx, send RST"<<endl;
+        _sender.send_empty_segment();
     }
-    // TODO: section 5: end connection
+
+    // might need to resend a segment if _sender.tick timer expires
+    // or send a reset segment
+    send_segments(); 
+    if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS)
+        reset();
+
     // if inbound  stream ends before tcp connection reach eof on outbound stream
     //cout<<">> >> stream out not oef? "<<_sender.stream_in().eof()
     //        <<": " <<_sender.stream_in().input_ended()
     //        <<" && "<<_sender.stream_in().buffer_empty()<<endl
     //    <<">> >> stream in input ended ie. fin recv'd? "<<_receiver.stream_out().input_ended()<<endl;
     try_switching_close_mode();
-
     try_closing_connection();
 }
 
 void TCPConnection::end_input_stream() { 
-    cout<<">> ending input stream"<<endl;
+    //cout<<">> ending input stream"<<endl;
     _sender.stream_in().end_input(); 
     _sender.fill_window();
     try_closing_connection();
 }
 
 void TCPConnection::connect() {
-    cout<<endl<<">> connect"<<endl;
+    //cout<<endl<<">> connect"<<endl;
     _sender.fill_window();
     send_segments();
 }
 
-void TCPConnection::send_reset_segm() {
-    // Your code here: need to send a RST segment to the peer
-    // send empty segment, grab from back, put on output queue, set ackno and win, reset
-    TCPSegment seg;
-    TCPHeader hdr;
-    hdr.rst = true;
-    seg.header() = hdr;
-    _segments_out.push(seg);
-    cout<<">> sending reset segm: "<<seg.header().summary()<<endl;
-} 
 
 void TCPConnection::reset() {
-    cout<<">> RESET, close stream"<<endl;
+    //cout<<">> RESET, close stream"<<endl;
 
     _sender.stream_in().set_error();
     _receiver.stream_out().set_error();
@@ -190,7 +183,9 @@ TCPConnection::~TCPConnection() {
     try {
         if (active()) {
             cerr << "Warning: Unclean shutdown of TCPConnection\n";
-            send_reset_segm();
+            if (_sender.segments_out().empty())
+                _sender.send_empty_segment();
+            send_segments(true);
             reset();
         }
     } catch (const exception &e) {

@@ -24,8 +24,7 @@ class TCPConnection {
     size_t _last_segm_recv_timer{0};
 
     void reset();
-    void send_reset_segm();
-    void send_segments();
+    void send_segments(bool rst = false);
     void try_closing_connection();
     void try_switching_close_mode();
     bool syn_sent();

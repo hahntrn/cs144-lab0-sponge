@@ -95,12 +95,12 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
     _timer.time_elapsed += ms_since_last_tick;
-    cout<<">> timer at: "<<_timer.time_elapsed<<" / "<<_timer.timeout<<endl;
+    //cout<<">> timer at: "<<_timer.time_elapsed<<" / "<<_timer.timeout<<endl;
     if (_timer.expired()) {
-        cout<<">> >> timer expired!"<<endl;
+        //cout<<">> >> timer expired!"<<endl;
         // retransmit earliest segment not fully acknowledged
         if (!_outstanding_segments.empty()) {
-            cout<<">> >> resending segm: "<<_outstanding_segments.begin()->segment.header().summary()<<endl;
+            //cout<<">> >> resending segm: "<<_outstanding_segments.begin()->segment.header().summary()<<endl;
             _segments_out.push(_outstanding_segments.begin()->segment);
 
             // if the receiver can receive more bytes but we aren't able to send more bc TODO

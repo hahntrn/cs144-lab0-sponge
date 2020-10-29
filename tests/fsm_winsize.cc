@@ -63,9 +63,7 @@ int main() {
 
             string d_out(swin_mul * swin, 0);
             size_t bytes_total = 0;
-            size_t i = 0;
             while (bytes_total < swin_mul * swin) {
-                cout << "loop "<<i++<<endl;
                 test_1.execute(ExpectSegmentAvailable{}, "test 1 failed: nothing sent after write()");
                 size_t bytes_read = 0;
                 while (test_1.can_read()) {

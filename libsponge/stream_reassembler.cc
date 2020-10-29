@@ -1,5 +1,4 @@
 #include "stream_reassembler.hh"
-
 #include <iostream>
 //! Ha Tran
 //! 2020-09-26
