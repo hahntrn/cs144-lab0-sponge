@@ -1,4 +1,5 @@
 #include "tcp_connection.hh"
+
 #include <iostream>
 
 // Ha Tran
@@ -18,27 +19,40 @@ size_t TCPConnection::unassembled_bytes() const { return _receiver.unassembled_b
 
 size_t TCPConnection::time_since_last_segment_received() const { return _last_segm_recv_timer; }
 
-void TCPConnection::try_switching_close_mode() {
-    if (!_sender.stream_in().eof() && _receiver.stream_out().input_ended())
-        _linger_after_streams_finish = false;
+bool TCPConnection::syn_sent() { return _sender.next_seqno_absolute() > 0; }
+
+bool TCPConnection::active() const { return _active; }
+
+void TCPConnection::end_input_stream() {
+    _sender.stream_in().end_input();
+    _sender.fill_window();
+    try_closing_connection();  // send_segments() called in try_closing_connection()
 }
 
-bool TCPConnection::syn_sent() { return _sender.next_seqno_absolute() > 0; }
+void TCPConnection::connect() {
+    _sender.fill_window();
+    send_segments();
+}
 
 void TCPConnection::segment_received(const TCPSegment &seg) {
     _receiver.segment_received(seg);
     _last_segm_recv_timer = 0;
 
-    if (seg.header().rst) 
+    if (seg.header().rst)
         reset();
     if (seg.header().ack)
         _sender.ack_received(seg.header().ackno, seg.header().win);
-    
+    if (debug) {
+        cout << ">> received segm: " << seg.header().summary() << endl;
+        cout << ">> unasmb bytes: " << _receiver.unassembled_bytes() << endl;
+    }
     if (syn_sent()) {
-        // if segment non-empty and we need to return an ack 
+        // if segment non-empty and we need to return an ack
         // but no segments are ready to be sent out
         // make sure at least one segment is sent in reply
         if (seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
+            if (debug)
+                cout << ">> recv'd non-empty segm but queue empty, make empty segment to ack" << endl;
             _sender.send_empty_segment();
         }
         send_segments();
@@ -46,10 +60,36 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
 
     if (seg.header().syn && !syn_sent())
         connect();
+    if (debug) {
+        cout << "   >> stream out not oef? " << _sender.stream_in().eof() << ": " << _sender.stream_in().input_ended()
+             << " && " << _sender.stream_in().buffer_empty() << endl
+             << "   >> stream in input ended ie. fin recv'd? " << _receiver.stream_out().input_ended() << endl;
+    }
     try_switching_close_mode();
 }
 
-bool TCPConnection::active() const { return _active; }
+size_t TCPConnection::write(const string &data) {
+    if (_sender.stream_in().input_ended() || !syn_sent())
+        return 0;
+    size_t n_bytes_written = _sender.stream_in().write(data);
+    if (debug)
+        cout << ">> writing " << n_bytes_written << " bytes, " << _sender.stream_in().remaining_capacity()
+             << " bytes remaining." << endl;
+    _sender.fill_window();
+    send_segments();
+    return n_bytes_written;
+}
+
+void TCPConnection::reset() {
+    _sender.stream_in().set_error();
+    _receiver.stream_out().set_error();
+    _active = false;
+}
+
+void TCPConnection::try_switching_close_mode() {
+    if (!_sender.stream_in().eof() && _receiver.stream_out().input_ended())
+        _linger_after_streams_finish = false;
+}
 
 void TCPConnection::send_segments(bool rst) {
     if (!active())
@@ -69,23 +109,17 @@ void TCPConnection::send_segments(bool rst) {
             seg.header().rst = true;
 
         _segments_out.push(seg);
+        if (debug)
+            cout << ">> sending segment: " << seg.header().summary() << endl;
     }
-}
-
-size_t TCPConnection::write(const string &data) {
-    if (_sender.stream_in().input_ended() || !syn_sent())
-        return 0;
-
-    size_t n_bytes_written = _sender.stream_in().write(data);
-    _sender.fill_window();
-    send_segments();
-    return n_bytes_written;
 }
 
 void TCPConnection::try_closing_connection() {
     if (!active())
         return;
 
+    if (debug)
+        cout << ">> try closing connection: " << endl;
     send_segments();
     bool active_close = _linger_after_streams_finish && _last_segm_recv_timer >= 10 * _cfg.rt_timeout;
     bool passive_close = !_linger_after_streams_finish;
@@ -93,12 +127,23 @@ void TCPConnection::try_closing_connection() {
     // prereq 1: inbound stream ended & fully assembled
     bool istream_done = _receiver.stream_out().input_ended() && _receiver.unassembled_bytes() == 0;
 
-    // prereq 2 (and 3): outbound stream ended, fully sent (fully ack'd by remote peer)
-    bool ostream_done = _sender.stream_in().eof() && _sender.next_seqno_absolute() == _sender.stream_in().bytes_written() + 2 &&
-               _sender.bytes_in_flight() == 0;
+    // prereq 2 (and 3): outbound stream ended, fully sent (and fully ack'd by remote peer)
+    bool ostream_done = _sender.stream_in().eof() &&
+                        _sender.next_seqno_absolute() == _sender.stream_in().bytes_written() + 2 &&
+                        _sender.bytes_in_flight() == 0;
 
-    if ((active_close || passive_close) && istream_done && ostream_done)
+    if (debug) {
+        cout << "   >> linger? " << _linger_after_streams_finish << endl
+             << "   >> active close: " << active_close << endl
+             << "   >> passive close: " << passive_close << endl
+             << "   >> prereq 1: " << istream_done << endl
+             << "   >> prereq2,3 " << ostream_done << endl;
+    }
+    if ((active_close || passive_close) && istream_done && ostream_done) {
+        if (debug)
+            cout << ">> closing..." << endl;
         _active = false;
+    }
 }
 
 //! \param[in] ms_since_last_tick number of milliseconds since the last call to this method
@@ -109,9 +154,13 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
     _sender.tick(ms_since_last_tick);
     _last_segm_recv_timer += ms_since_last_tick;
 
+    if (debug) {
+        cout << ">> tick! " << ms_since_last_tick << " : " << _last_segm_recv_timer << " / " << 10 * _cfg.rt_timeout
+             << endl;
+    }
     // if there has been too many consec retx and we need to send a RESET to peer
     // but there are no segments ready to be sent out, make an empty segment to send out
-    if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS && _sender.segments_out().empty()) 
+    if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS && _sender.segments_out().empty())
         _sender.send_empty_segment();
 
     // resend a segment if _sender.tick timer expires or send a reset segment
@@ -120,25 +169,12 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
     if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS)
         reset();
 
+    if (debug) {
+        cout << "   >> stream out not oef? " << _sender.stream_in().eof() << ": " << _sender.stream_in().input_ended()
+             << " && " << _sender.stream_in().buffer_empty() << endl;
+    }
     try_switching_close_mode();
     try_closing_connection();
-}
-
-void TCPConnection::end_input_stream() {
-    _sender.stream_in().end_input();
-    _sender.fill_window();
-    try_closing_connection(); // send_segments() called in try_closing_connection()
-}
-
-void TCPConnection::connect() {
-    _sender.fill_window();
-    send_segments();
-}
-
-void TCPConnection::reset() {
-    _sender.stream_in().set_error();
-    _receiver.stream_out().set_error();
-    _active = false;
 }
 
 TCPConnection::~TCPConnection() {

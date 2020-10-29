@@ -49,6 +49,9 @@ class TCPConnection {
     //! if we've received a SYN flag, next absolute seqno will be at least 1
     bool syn_sent();
 
+    //! en/disable cout statements for debugging
+    bool debug{false};
+
   public:
     //! \name "Input" interface for the writer
     //!@{

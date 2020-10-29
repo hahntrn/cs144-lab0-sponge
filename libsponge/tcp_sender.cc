@@ -65,6 +65,8 @@ void TCPSender::fill_window() {
         _segments_out.push(seg);
         _outstanding_segments.push_back(OrderedSegment{_next_seqno, seg});
         _next_seqno += seg.length_in_sequence_space();
+
+        // if the timer isn't running, start it with the original rtto
         if (_timer.expired())
             _timer.start(_initial_retransmission_timeout);
     }
@@ -84,7 +86,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
          it != _outstanding_segments.end() && it->seqno + it->segment.length_in_sequence_space() <= _abs_ackno;
          it = _outstanding_segments.erase(it))
 
-        //? still restart timer if no new complete segments confirmed to be received?
+        // only restart timer if there are new complete segments confirmed to be received
         _timer.start(_initial_retransmission_timeout);
     _n_consec_retransmissions = 0;
     fill_window();
@@ -93,15 +95,16 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
     _timer.time_elapsed += ms_since_last_tick;
-    // cout<<">> timer at: "<<_timer.time_elapsed<<" / "<<_timer.timeout<<endl;
+    if (debug)
+        cout << ">> timer at: " << _timer.time_elapsed << " / " << _timer.timeout << endl;
     if (_timer.expired()) {
-        // cout<<">> >> timer expired!"<<endl;
+        if (debug)
+            cout << ">> >> timer expired!" << endl;
         // retransmit earliest segment not fully acknowledged
         if (!_outstanding_segments.empty()) {
-            // cout<<">> >> resending segm: "<<_outstanding_segments.begin()->segment.header().summary()<<endl;
+            if (debug)
+                cout << ">> >> resending segm: " << _outstanding_segments.begin()->segment.header().summary() << endl;
             _segments_out.push(_outstanding_segments.begin()->segment);
-
-            // if the receiver can receive more bytes but we aren't able to send more bc TODO
 
             // only backoff if we had to resend a segment
             if (_window_size > 0) {
@@ -118,7 +121,7 @@ unsigned int TCPSender::consecutive_retransmissions() const { return _n_consec_r
 void TCPSender::send_empty_segment() {
     TCPHeader hdr;
     TCPSegment seg;
-    hdr.seqno = wrap(_next_seqno, _isn);  //? set seqno number?
+    hdr.seqno = wrap(_next_seqno, _isn);  // always set seqno
     seg.header() = hdr;
     _segments_out.push(seg);
 }
