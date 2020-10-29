@@ -13,28 +13,58 @@ Simon Tao (stao18)
 
 Program Structure and Design of the TCPConnection:
 In `connect()`:
+  - first call to sender's `fill_window()`, which will send a SYN flag
+    and any data in the bytestream
+  - send those segments
 
 In `segment_received()`:
   - give the segment to the receiver to process the ackno and window size
   - reset the time since we last received a segment
   - if the segment has the RST flag set, 
     set both streams to error and set connection state to inactive
-  - if we didn't initiate a connection and we get a SYN from the peer, connect
+  - if we have initiated a connection (`syn_sent()` is true if the next
+    absolute seqno is > 0), we need to make sure at least one segment
+    is sent in reply to the remote peer,
+    - so if there is no segments ready, we need to put an empty segment into
+      the outbound queue
+  - if we didn't initiate a connection and we get a SYN from the remote peer,
+    connect 
   - check if we still need to linger
-    - try switching close mode checks if the peer has ended their input,
+    - try switching close mode checks if the remote peer has ended their input,
       if so, we don't need to linger and can initiate a passive close
-      when conditions are met 
+      when conditions are met (`try_closing_connection()`)
 
 In `write()`:
-
-
-In `try_closing_connection()`:
-
+  - if the local peer has ended input or we haven't initiated connection,
+    we can't write anything to the stream
+  - otherwise
+    - write as much as possible to the outbound bytestream
+    - tell the sender to fill the window with segments containing the 
+      freshly written bytes and try to send those segments
 
 In `send_segments()`:
+  - do nothing if connection is inactive
+  - empty the outbounding queue of segments from the sender. for each segment,
+    - check if the receiver has an ackno and window size available,
+      and include it in the segment if there is
+    - set the reset flag if the optional argument rst is true
+    - send it out on the outbound queue of the connection
 
+In `try_closing_connection()`:
+  - if the connection is inactive, no need to close
+  - determine if we need to linger
+  - if the closing conditions are met, set the connection to inactive
 
 In `tick()`:
+  - exit if connection is inactive
+  - notify the sender's tick
+  - incremend the time since we last received a segment
+  - check if we have made too many retransmissions,
+    - reset the connection if necessary
+  - otherwise, call `send_segments()` to resend any segments the sender 
+    might've put on the outbound queue
+  - try closing the connection 
+    (if we're lingering, might've lingered long enough)
 
 
 
@@ -70,3 +100,6 @@ comprehensive material we can review besides the TA's help during the session.
 - Optional: I'm not sure about: 
 I haven't been able to test anything besides `tcp_udp` manually because I'm 
 haven't figured out how to correcty run them.
+
+Why are we not supposed to acknowledge any segments until we've initiated
+a connection and the SYN has been received by the other side?

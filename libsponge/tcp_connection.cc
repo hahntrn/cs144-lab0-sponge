@@ -91,6 +91,7 @@ void TCPConnection::try_switching_close_mode() {
         _linger_after_streams_finish = false;
 }
 
+//\param[in] rst is false by default, true a reset flag needs to be sent out
 void TCPConnection::send_segments(bool rst) {
     if (!active())
         return;
@@ -105,7 +106,7 @@ void TCPConnection::send_segments(bool rst) {
             seg.header().ackno = possible_ackno.value();
             seg.header().win = _receiver.window_size();
         }
-        if (rst || _sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS)
+        if (rst)
             seg.header().rst = true;
 
         _segments_out.push(seg);
@@ -158,22 +159,23 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
         cout << ">> tick! " << ms_since_last_tick << " : " << _last_segm_recv_timer << " / " << 10 * _cfg.rt_timeout
              << endl;
     }
-    // if there has been too many consec retx and we need to send a RESET to peer
-    // but there are no segments ready to be sent out, make an empty segment to send out
-    if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS && _sender.segments_out().empty())
-        _sender.send_empty_segment();
-
-    // resend a segment if _sender.tick timer expires or send a reset segment
-    send_segments();
-
-    if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS)
+    // if there has been too many consec retx, we need to send a RESET to peer
+    if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
+        // if there are no segments ready to be sent out, make an empty segment to send out
+        if (_sender.segments_out().empty())
+            _sender.send_empty_segment();
+        send_segments(true);
         reset();
+    } else {
+        // to resend a segment if _sender.tick timer expires
+        send_segments();
+    }
 
     if (debug) {
         cout << "   >> stream out not oef? " << _sender.stream_in().eof() << ": " << _sender.stream_in().input_ended()
              << " && " << _sender.stream_in().buffer_empty() << endl;
     }
-    try_switching_close_mode();
+    //try_switching_close_mode();
     try_closing_connection();
 }
 
