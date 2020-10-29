@@ -6,6 +6,7 @@ My name: Ha Tran
 My SUNet ID: hahntrn
 
 This lab took me about 16 hours to do. I did not attend the lab session.
+I used 2 late days on this lab. (and 1 late day for lab2)
 
 I worked with or talked about this assignment with:
 Nikhil Raghuraman (nikhilvr)
