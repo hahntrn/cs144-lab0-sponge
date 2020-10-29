@@ -21,8 +21,7 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
     , _outstanding_segments()
     , _timer{0, retx_timeout} {}
 
-uint64_t TCPSender::bytes_in_flight() const { 
-    return _next_seqno - _abs_ackno; }
+uint64_t TCPSender::bytes_in_flight() const { return _next_seqno - _abs_ackno; }
 
 void TCPSender::fill_window() {
     while (_next_seqno <= _abs_ackno + _window_size) {
@@ -52,11 +51,10 @@ void TCPSender::fill_window() {
         // fill as many bytes as we can from the stream
         TCPSegment seg;
         seg.payload() = _stream.read(n_bytes_to_send);
-        n_bytes_to_send = n_bytes_to_send == TCPConfig::MAX_PAYLOAD_SIZE ? 1 
-            : n_bytes_to_send - seg.payload().size();
+        n_bytes_to_send = n_bytes_to_send == TCPConfig::MAX_PAYLOAD_SIZE ? 1 : n_bytes_to_send - seg.payload().size();
 
         // include the FIN flag if it fits
-        if (_stream.eof() && (n_bytes_to_send > 0)) 
+        if (_stream.eof() && (n_bytes_to_send > 0))
             hdr.fin = true;
 
         seg.header() = hdr;
@@ -65,9 +63,9 @@ void TCPSender::fill_window() {
         if (seg.length_in_sequence_space() == 0)
             return;
         _segments_out.push(seg);
-        _outstanding_segments.push_back(OrderedSegment { _next_seqno, seg });
+        _outstanding_segments.push_back(OrderedSegment{_next_seqno, seg});
         _next_seqno += seg.length_in_sequence_space();
-        if (_timer.expired()) 
+        if (_timer.expired())
             _timer.start(_initial_retransmission_timeout);
     }
 }
@@ -75,7 +73,7 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
-    _window_size = window_size; // update window size even if we get a wacko ackno?
+    _window_size = window_size;  // update window size even if we get a wacko ackno?
 
     uint64_t new_abs_ackno = unwrap(ackno, _isn, _abs_ackno);
     if (new_abs_ackno <= _abs_ackno || new_abs_ackno > _next_seqno)
@@ -86,8 +84,8 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
          it != _outstanding_segments.end() && it->seqno + it->segment.length_in_sequence_space() <= _abs_ackno;
          it = _outstanding_segments.erase(it))
 
-    //? still restart timer if no new complete segments confirmed to be received?
-    _timer.start(_initial_retransmission_timeout);
+        //? still restart timer if no new complete segments confirmed to be received?
+        _timer.start(_initial_retransmission_timeout);
     _n_consec_retransmissions = 0;
     fill_window();
 }
@@ -95,12 +93,12 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
     _timer.time_elapsed += ms_since_last_tick;
-    //cout<<">> timer at: "<<_timer.time_elapsed<<" / "<<_timer.timeout<<endl;
+    // cout<<">> timer at: "<<_timer.time_elapsed<<" / "<<_timer.timeout<<endl;
     if (_timer.expired()) {
-        //cout<<">> >> timer expired!"<<endl;
+        // cout<<">> >> timer expired!"<<endl;
         // retransmit earliest segment not fully acknowledged
         if (!_outstanding_segments.empty()) {
-            //cout<<">> >> resending segm: "<<_outstanding_segments.begin()->segment.header().summary()<<endl;
+            // cout<<">> >> resending segm: "<<_outstanding_segments.begin()->segment.header().summary()<<endl;
             _segments_out.push(_outstanding_segments.begin()->segment);
 
             // if the receiver can receive more bytes but we aren't able to send more bc TODO
@@ -120,7 +118,7 @@ unsigned int TCPSender::consecutive_retransmissions() const { return _n_consec_r
 void TCPSender::send_empty_segment() {
     TCPHeader hdr;
     TCPSegment seg;
-    hdr.seqno = wrap(_next_seqno, _isn); //? set seqno number?
+    hdr.seqno = wrap(_next_seqno, _isn);  //? set seqno number?
     seg.header() = hdr;
     _segments_out.push(seg);
 }
