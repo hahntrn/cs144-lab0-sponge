@@ -7,7 +7,7 @@
 #include "wrapping_integers.hh"
 
 #include <functional>
-#include <map>
+#include <list>
 #include <queue>
 
 //! \brief The "sender" part of a TCP implementation.
@@ -54,14 +54,23 @@ class TCPSender {
     //! window size the receiver is expecting
     size_t _window_size{1};
 
+    //! segment with their corresponding seqno
+    struct OrderedSegment {
+        uint64_t seqno;
+        TCPSegment segment;
+    };
+
     //! segments sent but not yet acknowledged by receiver, sorted by absolute seqno
-    std::map<uint64_t, TCPSegment> _outstanding_segments;
+    std::list<OrderedSegment> _outstanding_segments;
 
     //! retransmission timer
     Timer _timer;
 
     //! number of times we've sent the same segment
     size_t _n_consec_retransmissions{0};
+
+    //! enable cout statements for debugging
+    bool debug{false};
 
   public:
     //! Initialize a TCPSender
