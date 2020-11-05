@@ -7,9 +7,7 @@
 
 #include <optional>
 #include <queue>
-#include <list>
 #include <map>
-#include <set>
 
 //! \brief A "network interface" that connects IP (the internet layer, or network layer)
 //! with Ethernet (the network access layer, or link layer).
@@ -44,31 +42,31 @@ class NetworkInterface {
     std::queue<EthernetFrame> _frames_out{};
 
     //! if true, print debug messages
-    bool debug{true};
+    bool debug{false};
 
+    //! entries in forwarding table contains the numeric IP address to
+    //! corresponding ethernet address
     struct Entry {
         EthernetAddress eth_addr;
-        size_t timeout;
+        size_t time_elapsed;
     };
-    //! 
     std::map<uint32_t, Entry> _forwarding_table;
     
-    struct Request {
-        Address ip_addr;
-        size_t time_since_last_sent;
-    };
-    //!
+    //! ARPMessage requests waiting on a reply
     std::map<uint32_t, size_t> _outstanding_msg;
 
+    //! IP address with unknown ethernet address waiting on ARP reply
+    //! and datagrams waiting to be sent to that address
     std::map<uint32_t, std::queue<InternetDatagram>> _unsent_datagrams;
-    //struct OutgoingDgram {
-    //    uint32_t 
-    //std::list
-
     
+    //! ARP request retransmission time out in milliseconds
+    //! (another request will only be sent after this time has elapsed)
     static const size_t RTTO{5000};
+
+    //! Entry in the forwarding table will be deleted after this number of milliseconds
     static const size_t ENTRY_EXPIRY{30000};
 
+    //! When broadcasting an ARPMessage request, set IP address to this
     const EthernetAddress ARP_MSG_ETHERNET_BROADCAST = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     
   public:
