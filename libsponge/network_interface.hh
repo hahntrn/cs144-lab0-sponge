@@ -61,13 +61,14 @@ class NetworkInterface {
     
     //! ARP request retransmission time out in milliseconds
     //! (another request will only be sent after this time has elapsed)
-    static const size_t RTTO{5000};
+    static const size_t MSG_EXPIRY{5000};
 
     //! Entry in the forwarding table will be deleted after this number of milliseconds
     static const size_t ENTRY_EXPIRY{30000};
 
-    //! When broadcasting an ARPMessage request, set IP address to this
-    const EthernetAddress ARP_MSG_ETHERNET_BROADCAST = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    //! When broadcasting an ARPMessage request, 
+    //! set target ethernet address of message to this
+    const EthernetAddress ARPMSG_ETHERNET_BROADCAST = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     
   public:
     //! \brief Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer) addresses

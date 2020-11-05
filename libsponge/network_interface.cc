@@ -62,7 +62,7 @@ void NetworkInterface::send_datagram(const InternetDatagram &dgram, const Addres
     }
 
     auto it_msg = _outstanding_msg.find(next_hop_ip);
-    if (it_msg != _outstanding_msg.end() && it_msg->second < RTTO) {
+    if (it_msg != _outstanding_msg.end()) {
         if (debug) cout << "DEBUG: jk don't send an ARP request, last sent "<<it_msg->second<<"ms ago" << endl;
         return;
     }
@@ -72,7 +72,7 @@ void NetworkInterface::send_datagram(const InternetDatagram &dgram, const Addres
     msg.opcode = msg.OPCODE_REQUEST;
     msg.sender_ethernet_address = _ethernet_address;
     msg.sender_ip_address = _ip_address.ipv4_numeric();
-    msg.target_ethernet_address = ARP_MSG_ETHERNET_BROADCAST;
+    msg.target_ethernet_address = ARPMSG_ETHERNET_BROADCAST;
     msg.target_ip_address = next_hop_ip;
     
     EthernetFrame frame;
@@ -107,10 +107,13 @@ optional<InternetDatagram> NetworkInterface::recv_frame(const EthernetFrame &fra
         // ARP MESSAGE PAYLOAD
         if (debug) cout<<"DEBUG: recv'd ARP msg"<<endl;
         ARPMessage msg;
-        if (msg.parse(payload_single) == ParseResult::NoError && msg.target_ip_address == _ip_address.ipv4_numeric()) {
+
+        // if the message can't be parsed or the target IP address is not ours
+        if (msg.parse(payload_single) != ParseResult::NoError || msg.target_ip_address != _ip_address.ipv4_numeric()) 
+            return {};
 
         // learn a mapping: we can reach this IP address via this ethernet address
-        Entry ent = { msg.sender_ethernet_address, ENTRY_EXPIRY };
+        Entry ent = { msg.sender_ethernet_address, 0 };
         _forwarding_table.insert(std::pair<uint32_t, Entry>(msg.sender_ip_address, ent));
 
         // send any datagrams waiting to be sent
@@ -144,9 +147,9 @@ optional<InternetDatagram> NetworkInterface::recv_frame(const EthernetFrame &fra
             if (debug) cout << "DEBUG: sending ARP reply: " << reply_frame.header().to_string() << endl;
             _frames_out.push(reply_frame);
         } else {
-            // message is a reply, delete the request
+            // message is a reply, delete the request (if it exists)
             _outstanding_msg.erase(msg.sender_ip_address);
-        }}
+        }
     }
     return {};
 }
@@ -156,26 +159,23 @@ void NetworkInterface::tick(const size_t ms_since_last_tick) {
     if (debug) cout << "DEBUG: tick! " << ms_since_last_tick << "ms passed" << endl;
     // remove any entries older than 30s in forwarding table
     for (auto it = _forwarding_table.begin(); it != _forwarding_table.end();) {
-        if (it->second.time_elapsed < ms_since_last_tick) {
+        if (it->second.time_elapsed + ms_since_last_tick > ENTRY_EXPIRY) {
             it = _forwarding_table.erase(it);
         } else {
-            it->second.time_elapsed -= ms_since_last_tick;
+            it->second.time_elapsed += ms_since_last_tick;
             it++; 
         }
     }
 
     // update entries in the queue of arp requests
-    for (auto it = _outstanding_msg.begin(); it != _outstanding_msg.end(); it++) {
-        // so we don't have to deal with large numbers and overflowing,
-        // only increment entries if they're under 5 seconds
-        if (it->second <= RTTO) 
+    for (auto it = _outstanding_msg.begin(); it != _outstanding_msg.end();) {
+        // remove any entries older than 5s
+        if (it->second + ms_since_last_tick > MSG_EXPIRY) {
+            it = _outstanding_msg.erase(it);
+        } else {
             it->second += ms_since_last_tick;
-        // if (it->second + ms_since_last_tick > RTTO) {
-        //     it = _outstanding_msg.erase(it);
-        // } else {
-        //     it->second += ms_since_last_tick;
-        //     it++;
-        // }
+            it++;
+        }
     }
 }
 
