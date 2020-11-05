@@ -50,7 +50,7 @@ class TCPConnection {
     bool syn_sent();
 
     //! en/disable cout statements for debugging
-    bool debug{false};
+    bool debug{true};
 
   public:
     //! \name "Input" interface for the writer

@@ -7,6 +7,9 @@
 
 #include <optional>
 #include <queue>
+#include <list>
+#include <map>
+#include <set>
 
 //! \brief A "network interface" that connects IP (the internet layer, or network layer)
 //! with Ethernet (the network access layer, or link layer).
@@ -40,6 +43,34 @@ class NetworkInterface {
     //! outbound queue of Ethernet frames that the NetworkInterface wants sent
     std::queue<EthernetFrame> _frames_out{};
 
+    //! if true, print debug messages
+    bool debug{true};
+
+    struct Entry {
+        EthernetAddress eth_addr;
+        size_t timeout;
+    };
+    //! 
+    std::map<uint32_t, Entry> _forwarding_table;
+    
+    struct Request {
+        Address ip_addr;
+        size_t time_since_last_sent;
+    };
+    //!
+    std::map<uint32_t, size_t> _outstanding_msg;
+
+    std::map<uint32_t, std::queue<InternetDatagram>> _unsent_datagrams;
+    //struct OutgoingDgram {
+    //    uint32_t 
+    //std::list
+
+    
+    static const size_t RTTO{5000};
+    static const size_t ENTRY_EXPIRY{30000};
+
+    const EthernetAddress ARP_MSG_ETHERNET_BROADCAST = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    
   public:
     //! \brief Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer) addresses
     NetworkInterface(const EthernetAddress &ethernet_address, const Address &ip_address);
