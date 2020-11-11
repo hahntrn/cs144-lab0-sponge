@@ -5,6 +5,8 @@
 
 #include <optional>
 #include <queue>
+#include <map>
+#include <stdint.h>
 
 //! \brief A wrapper for NetworkInterface that makes the host-side
 //! interface asynchronous: instead of returning received datagrams
@@ -49,6 +51,23 @@ class Router {
     //! datagram's destination address.
     void route_one_datagram(InternetDatagram &dgram);
 
+    //! routing table maps a prefix length to a map of a prefix of that length to an 
+    //! InterfaceOut struct with contains the associated next hop and interface number
+    struct InterfaceOut {
+        InterfaceOut(std::optional<Address> nh, size_t in):
+            next_hop(nh), interface_num(in) {}
+        std::optional<Address> next_hop;
+        size_t interface_num;
+    };
+    std::map<uint8_t, std::map<uint32_t, InterfaceOut>> _routing_table{};
+
+    //! returns a 32-bit number that masks out all but the first prefix_len bits when ANDed 
+    uint32_t get_mask(uint8_t prefix_len) { 
+        return prefix_len == 0 || prefix_len > 32 ? 0 : UINT32_MAX << (32 - prefix_len); 
+    }
+
+    //! prints debug messages to cerr when true
+    bool debug{false};
   public:
     //! Add an interface to the router
     //! \param[in] interface an already-constructed network interface
