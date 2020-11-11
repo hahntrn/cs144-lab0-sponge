@@ -6,7 +6,10 @@
 #include <optional>
 #include <queue>
 #include <map>
+<<<<<<< HEAD
 #include <stdint.h>
+=======
+>>>>>>> 620b9fff8e0c8d713b998ce04e3fc78b57423902
 
 //! \brief A wrapper for NetworkInterface that makes the host-side
 //! interface asynchronous: instead of returning received datagrams
